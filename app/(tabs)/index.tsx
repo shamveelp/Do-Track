@@ -6,51 +6,16 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Dimensions, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Calendar } from 'react-native-calendars';
+import Modal from 'react-native-modal';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
 
-const TRANSACTIONS = [
-  {
-    id: '1',
-    name: 'Upwork',
-    date: 'Today',
-    amount: '+ ₹ 850.00',
-    type: 'income',
-    icon: 'https://img.icons8.com/color/48/upwork.png', // Fallback if logo not found
-  },
-  {
-    id: '2',
-    name: 'Transfer',
-    date: 'Yesterday',
-    amount: '- ₹ 85.00',
-    type: 'expense',
-    avatar: require('@/assets/images/friend1.png'),
-  },
-  {
-    id: '3',
-    name: 'Paypal',
-    date: 'Jan 30, 2022',
-    amount: '+ ₹ 1,406.00',
-    type: 'income',
-    icon: 'https://img.icons8.com/color/48/paypal.png',
-  },
-  {
-    id: '4',
-    name: 'Youtube',
-    date: 'Jan 16, 2022',
-    amount: '- ₹ 11.99',
-    type: 'expense',
-    icon: 'https://img.icons8.com/color/48/youtube-play.png',
-  },
-];
-
-const FRIENDS = [
-  { id: '1', avatar: require('@/assets/images/friend1.png') },
-  { id: '2', avatar: require('@/assets/images/friend2.png') },
-  { id: '3', avatar: require('@/assets/images/friend3.png') },
-  { id: '4', avatar: require('@/assets/images/friend1.png') },
-  { id: '5', avatar: require('@/assets/images/friend2.png') },
+const YEARS = ['All Transactions', '2026', '2025', '2024'];
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
 export default function HomeScreen() {
@@ -61,10 +26,21 @@ export default function HomeScreen() {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [stats, setStats] = useState({ balance: 0, income: 0, expense: 0 });
 
+  // Filter States
+  const [filterType, setFilterType] = useState('year'); // default 2026
+  const [selectedYear, setSelectedYear] = useState('2026');
+  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
+  const [customRange, setCustomRange] = useState<{ from: string; to: string } | null>(null);
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [showMonthYearGrid, setShowMonthYearGrid] = useState(false);
+  const [gridMode, setGridMode] = useState<'month' | 'year'>('month');
+
+  const today = new Date();
+
   useFocusEffect(
     useCallback(() => {
       fetchDashboardData();
-    }, [])
+    }, [selectedYear, selectedMonth, customRange, filterType])
   );
 
   const fetchDashboardData = async () => {
@@ -75,20 +51,33 @@ export default function HomeScreen() {
 
       setUserData(user);
 
-      // Fetch transactions
-      const { data: trans, error: transError } = await supabase
-        .from('transactions')
-        .select('*')
+      let query = supabase.from('transactions').select('*');
+
+      // Apply Filters
+      if (filterType === 'year' && selectedYear !== 'All Transactions') {
+        const start = `${selectedYear}-01-01`;
+        const end = `${selectedYear}-12-31`;
+        query = query.gte('date', start).lte('date', end);
+      } else if (filterType === 'month' && selectedMonth !== null) {
+        const year = selectedYear === 'All Transactions' ? '2026' : selectedYear;
+        const start = `${year}-${String(selectedMonth + 1).padStart(2, '0')}-01`;
+        const lastDay = new Date(parseInt(year), selectedMonth + 1, 0).getDate();
+        const end = `${year}-${String(selectedMonth + 1).padStart(2, '0')}-${lastDay}`;
+        query = query.gte('date', start).lte('date', end);
+      } else if (filterType === 'custom' && customRange) {
+        query = query.gte('date', customRange.from).lte('date', customRange.to);
+      }
+
+      // Fetch 5 recent for list
+      const { data: trans, error: transError } = await query
         .order('date', { ascending: false })
         .limit(5);
 
       if (transError) throw transError;
       setTransactions(trans || []);
 
-      // Calculate stats (Realistically you might want a specialized RPC or view for this)
-      const { data: allTrans, error: allTransError } = await supabase
-        .from('transactions')
-        .select('amount, type');
+      // Calculate stats for current filter
+      const { data: allTrans, error: allTransError } = await query.select('amount, type');
 
       if (allTransError) throw allTransError;
 
@@ -121,6 +110,13 @@ export default function HomeScreen() {
 
   const formatCurrency = (val: number) => {
     return '₹ ' + val.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+  };
+
+  const getFilterLabel = () => {
+    if (filterType === 'year') return selectedYear;
+    if (filterType === 'month' && selectedMonth !== null) return `${MONTHS[selectedMonth]} ${selectedYear}`;
+    if (filterType === 'custom' && customRange) return `${customRange.from} - ${customRange.to}`;
+    return 'All Transactions';
   };
 
   const userDisplayName = userData?.user_metadata?.full_name || userData?.email?.split('@')[0] || 'User';
@@ -169,7 +165,10 @@ export default function HomeScreen() {
                 <Text style={styles.cardLabel}>Total Balance</Text>
                 <IconSymbol name="chevron.right" size={16} color="white" style={{ transform: [{ rotate: '-90deg' }] }} />
               </View>
-              <IconSymbol name="ellipsis" size={24} color="white" />
+              <TouchableOpacity onPress={() => setShowFilterModal(true)} style={styles.filterTrigger}>
+                <Text style={styles.filterText}>{getFilterLabel()}</Text>
+                <IconSymbol name="chevron.down" size={18} color="white" />
+              </TouchableOpacity>
             </View>
             <Text style={styles.balanceAmount}>{formatCurrency(stats.balance)}</Text>
 
@@ -226,9 +225,15 @@ export default function HomeScreen() {
                     </View>
                     <View>
                       <Text style={styles.transactionName}>{item.title}</Text>
-                      <Text style={styles.transactionDate}>
-                        {new Date(item.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                      </Text>
+                      <View style={styles.transactionMetaRow}>
+                        <Text style={styles.transactionDate}>
+                          {new Date(item.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                        </Text>
+                        <View style={styles.dotSeparator} />
+                        <Text style={styles.transactionDate}>
+                          {new Date(item.date).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                        </Text>
+                      </View>
                     </View>
                   </View>
                   <Text style={[
@@ -246,6 +251,232 @@ export default function HomeScreen() {
         {/* Padding for bottom bar */}
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* Filter Modal */}
+      <Modal
+        isVisible={showFilterModal}
+        onBackdropPress={() => setShowFilterModal(false)}
+        style={styles.modal}
+        backdropOpacity={0.5}
+      >
+        <View style={styles.pickerContainer}>
+          <View style={styles.pickerHeader}>
+            <Text style={styles.pickerTitle}>Filter Transactions</Text>
+            <TouchableOpacity onPress={() => setShowFilterModal(false)}>
+              <IconSymbol name="plus" size={24} color="#666" style={{ transform: [{ rotate: '45deg' }] }} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {/* Year Selection */}
+            <Text style={styles.filterGroupLabel}>Select Year</Text>
+            <View style={styles.filterOptions}>
+              {YEARS.map((year) => (
+                <TouchableOpacity
+                  key={year}
+                  style={[styles.optionBadge, selectedYear === year && filterType === 'year' && styles.optionBadgeActive]}
+                  onPress={() => {
+                    setSelectedYear(year);
+                    setFilterType('year');
+                    setSelectedMonth(null);
+                    setCustomRange(null);
+                  }}
+                >
+                  <Text style={[styles.optionText, selectedYear === year && filterType === 'year' && styles.optionTextActive]}>{year}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Month Selection */}
+            <Text style={styles.filterGroupLabel}>Select Month ({selectedYear === 'All Transactions' ? '2026' : selectedYear})</Text>
+            <View style={styles.filterOptions}>
+              {MONTHS.map((month, index) => (
+                <TouchableOpacity
+                  key={month}
+                  style={[styles.optionBadge, selectedMonth === index && filterType === 'month' && styles.optionBadgeActive]}
+                  onPress={() => {
+                    setSelectedMonth(index);
+                    setFilterType('month');
+                    if (selectedYear === 'All Transactions') setSelectedYear('2026');
+                    setCustomRange(null);
+                  }}
+                >
+                  <Text style={[styles.optionText, selectedMonth === index && filterType === 'month' && styles.optionTextActive]}>{month}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Custom Range */}
+            <Text style={styles.filterGroupLabel}>Custom Date Range</Text>
+            <View style={styles.datePickerContainer}>
+              {showMonthYearGrid ? (
+                <View style={styles.gridContainer}>
+                  {gridMode === 'year' ? (
+                    <View>
+                      <View style={styles.gridHeader}>
+                        <Text style={styles.gridHeaderText}>Select Year (2000 - {today.getFullYear()})</Text>
+                      </View>
+                      <ScrollView style={{ maxHeight: 200 }} showsVerticalScrollIndicator={false}>
+                        <View style={styles.gridItemsRow}>
+                          {Array.from({ length: today.getFullYear() - 2000 + 1 }, (_, i) => 2000 + i).reverse().map(year => (
+                            <TouchableOpacity
+                              key={year}
+                              style={[styles.monthGridItem, (customRange?.from || new Date().toISOString()).startsWith(year.toString()) && styles.monthGridItemActive, { width: '23%' }]}
+                              onPress={() => {
+                                const dateStr = customRange?.from || new Date().toISOString();
+                                const [_, m, d] = dateStr.split('-');
+                                let newMonth = m;
+                                if (year === today.getFullYear() && parseInt(m) > (today.getMonth() + 1)) {
+                                  newMonth = String(today.getMonth() + 1).padStart(2, '0');
+                                }
+                                setCustomRange({ from: `${year}-${newMonth}-${d}`, to: '' });
+                                setGridMode('month');
+                              }}
+                            >
+                              <Text style={[styles.monthGridText, (customRange?.from || new Date().toISOString()).startsWith(year.toString()) && styles.monthGridTextActive]}>{year}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      </ScrollView>
+                    </View>
+                  ) : (
+                    <View>
+                      <View style={styles.gridYearRow}>
+                        <TouchableOpacity onPress={() => {
+                          const dateStr = customRange?.from || new Date().toISOString();
+                          const [y, m, d] = dateStr.split('-');
+                          setCustomRange({ from: `${parseInt(y) - 1}-${m}-${d}`, to: '' });
+                        }}>
+                          <IconSymbol name="chevron.left" size={24} color="#429690" />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => setGridMode('year')}>
+                          <Text style={styles.gridYearText}>{(customRange?.from || new Date().toISOString()).split('-')[0]} (Change)</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => {
+                            const dateStr = customRange?.from || new Date().toISOString();
+                            const [y, m, d] = dateStr.split('-');
+                            if (parseInt(y) < today.getFullYear()) {
+                              setCustomRange({ from: `${parseInt(y) + 1}-${m}-${d}`, to: '' });
+                            }
+                          }}
+                          disabled={parseInt((customRange?.from || new Date().toISOString()).split('-')[0]) >= today.getFullYear()}
+                          style={{ opacity: parseInt((customRange?.from || new Date().toISOString()).split('-')[0]) >= today.getFullYear() ? 0.3 : 1 }}
+                        >
+                          <IconSymbol name="chevron.right" size={24} color="#429690" />
+                        </TouchableOpacity>
+                      </View>
+
+                      <View style={styles.monthGrid}>
+                        {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, idx) => {
+                          const monthVal = String(idx + 1).padStart(2, '0');
+                          const dateStr = customRange?.from || new Date().toISOString();
+                          const currentYear = dateStr.split('-')[0];
+                          const currentMonth = dateStr.split('-')[1];
+                          const isSelected = currentMonth === monthVal;
+                          const isFutureMonth = parseInt(currentYear) === today.getFullYear() && idx > today.getMonth();
+                          return (
+                            <TouchableOpacity
+                              key={m}
+                              disabled={isFutureMonth}
+                              style={[
+                                styles.monthGridItem,
+                                isSelected && styles.monthGridItemActive,
+                                isFutureMonth && { opacity: 0.2 }
+                              ]}
+                              onPress={() => {
+                                const [y, _, d] = dateStr.split('-');
+                                setCustomRange({ from: `${y}-${monthVal}-${d}`, to: '' });
+                                setShowMonthYearGrid(false);
+                              }}
+                            >
+                              <Text style={[styles.monthGridText, isSelected && styles.monthGridTextActive]}>{m}</Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  )}
+                  <TouchableOpacity
+                    style={styles.closeGridBtn}
+                    onPress={() => {
+                      if (gridMode === 'year') setGridMode('month');
+                      else setShowMonthYearGrid(false);
+                    }}
+                  >
+                    <Text style={styles.closeGridBtnText}>{gridMode === 'year' ? 'Back to Months' : 'Back to Calendar'}</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <Calendar
+                  key={(customRange?.from || new Date().toISOString()).substring(0, 7)}
+                  current={customRange?.from || new Date().toISOString()}
+                  maxDate={today.toISOString().split('T')[0]}
+                  renderHeader={() => (
+                    <TouchableOpacity
+                      style={styles.calendarHeaderContainer}
+                      onPress={() => setShowMonthYearGrid(true)}
+                    >
+                      <Text style={styles.calendarHeaderText}>
+                        {MONTHS[parseInt((customRange?.from || new Date().toISOString()).split('-')[1]) - 1]} {(customRange?.from || new Date().toISOString()).split('-')[0]}
+                      </Text>
+                      <IconSymbol name="chevron.right" size={14} color="#429690" style={{ transform: [{ rotate: '90deg' }], marginLeft: 5 }} />
+                    </TouchableOpacity>
+                  )}
+                  markingType={'period'}
+                  onDayPress={(day: any) => {
+                    if (!customRange || (customRange.from && customRange.to)) {
+                      setCustomRange({ from: day.dateString, to: '' });
+                    } else {
+                      const range = { from: customRange.from, to: day.dateString };
+                      if (new Date(range.from) > new Date(range.to)) {
+                        setCustomRange({ from: range.to, to: range.from });
+                      } else {
+                        setCustomRange(range);
+                      }
+                      setFilterType('custom');
+                    }
+                  }}
+                  onPressArrowLeft={(subtractMonth: any) => {
+                    subtractMonth();
+                    const dateStr = customRange?.from || new Date().toISOString();
+                    const [y, m, d] = dateStr.split('-');
+                    const date = new Date(parseInt(y), parseInt(m) - 2, 1);
+                    setCustomRange({ from: date.toISOString().split('T')[0], to: '' });
+                  }}
+                  onPressArrowRight={(addMonth: any) => {
+                    const dateStr = customRange?.from || new Date().toISOString();
+                    const [y, m, d] = dateStr.split('-');
+                    const nextMonth = new Date(parseInt(y), parseInt(m), 1);
+                    if (nextMonth <= today || (nextMonth.getMonth() <= today.getMonth() && nextMonth.getFullYear() === today.getFullYear())) {
+                      addMonth();
+                      setCustomRange({ from: nextMonth.toISOString().split('T')[0], to: '' });
+                    }
+                  }}
+                  markedDates={
+                    customRange?.from ? {
+                      [customRange.from]: { startingDay: true, color: '#429690', textColor: 'white' },
+                      ...(customRange.to ? { [customRange.to]: { endingDay: true, color: '#429690', textColor: 'white' } } : {})
+                    } : {}
+                  }
+                  theme={{
+                    todayTextColor: '#429690',
+                    arrowColor: '#429690',
+                    selectedDayBackgroundColor: '#429690',
+                  }}
+                />
+              )}
+            </View>
+
+            <TouchableOpacity
+              style={styles.applyBtn}
+              onPress={() => setShowFilterModal(false)}
+            >
+              <Text style={styles.applyBtnText}>Apply Filter</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -268,7 +499,7 @@ const styles = StyleSheet.create({
     height: 280,
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
-    overflow: 'hidden', // Add overflow hidden to clip circles
+    overflow: 'hidden',
   },
   headerContent: {
     paddingHorizontal: 25,
@@ -334,6 +565,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  filterTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 6,
+  },
+  filterText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+  },
   balanceAmount: {
     color: 'white',
     fontSize: 32,
@@ -395,7 +640,6 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 15,
     marginBottom: 10,
-    // Add subtle shadow for transactions
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -415,16 +659,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
-  },
-  transactionIcon: {
-    width: 24,
-    height: 24,
-    resizeMode: 'contain',
-  },
-  avatarIcon: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
   },
   transactionName: {
     fontSize: 15,
@@ -446,23 +680,220 @@ const styles = StyleSheet.create({
     marginTop: 20,
     fontSize: 14,
   },
-  friendsList: {
-    paddingLeft: 25,
-    paddingRight: 10,
-    gap: 12,
+  modal: {
+    margin: 0,
+    justifyContent: 'flex-end',
   },
-  friendAvatarContainer: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+  pickerContainer: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    padding: 20,
+    maxHeight: '90%',
   },
-  friendAvatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    borderWidth: 2,
-    borderColor: 'white',
+  pickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  pickerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#333',
+  },
+  filterGroupLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#333',
+    marginTop: 15,
+    marginBottom: 10,
+    letterSpacing: 0.5,
+  },
+  filterOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  optionBadge: {
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#F5F5F5',
+    borderWidth: 1,
+    borderColor: '#EEE',
+  },
+  optionBadgeActive: {
+    backgroundColor: '#429690',
+    borderColor: '#429690',
+  },
+  optionText: {
+    fontSize: 13,
+    color: '#666',
+    fontWeight: '500',
+  },
+  optionTextActive: {
+    color: 'white',
+  },
+  datePickerContainer: {
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: '#EEE',
+    borderRadius: 15,
+    overflow: 'hidden',
+  },
+  applyBtn: {
+    backgroundColor: '#429690',
+    paddingVertical: 18,
+    borderRadius: 18,
+    alignItems: 'center',
+    marginVertical: 25,
+    shadowColor: '#429690',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 15,
+    elevation: 8,
+  },
+  applyBtnText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  selectorScroll: {
+    marginBottom: 5,
+  },
+  selectorBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+    backgroundColor: '#F5F5F5',
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: '#EEE',
+  },
+  selectorBadgeActive: {
+    backgroundColor: '#429690',
+    borderColor: '#429690',
+  },
+  selectorBadgeText: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '600',
+  },
+  selectorBadgeTextActive: {
+    color: 'white',
+  },
+  monthYearHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F0F6F5',
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginBottom: 10,
+    gap: 8,
+    marginHorizontal: 10,
+  },
+  monthYearHeaderText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#2E7E78',
+  },
+  gridContainer: {
+    padding: 10,
+    backgroundColor: 'white',
+    borderRadius: 20,
+    marginHorizontal: 10,
+  },
+  gridYearRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+    paddingHorizontal: 20,
+  },
+  gridYearText: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#333',
+  },
+  monthGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  monthGridItem: {
+    width: '30%',
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 12,
+    backgroundColor: '#F5F5F5',
+    marginBottom: 5,
+  },
+  monthGridItemActive: {
+    backgroundColor: '#429690',
+  },
+  monthGridText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#666',
+  },
+  monthGridTextActive: {
+    color: 'white',
+  },
+  calendarHeaderContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 5,
+  },
+  calendarHeaderText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#2E7E78',
+  },
+  closeGridBtn: {
+    marginTop: 15,
+    backgroundColor: '#F0F6F5',
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginHorizontal: 10,
+  },
+  closeGridBtnText: {
+    color: '#429690',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  transactionMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 1,
+  },
+  dotSeparator: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: '#CCC',
+    marginHorizontal: 8,
+  },
+  gridHeader: {
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEE',
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  gridHeaderText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#666',
+  },
+  gridItemsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 8,
   },
 });
+

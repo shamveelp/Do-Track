@@ -96,7 +96,7 @@ export default function TransactionDetailScreen() {
 
                     <View style={styles.infoRow}>
                         <Text style={styles.infoLabel}>Time</Text>
-                        <Text style={styles.infoValue}>{new Date(transaction.date).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</Text>
+                        <Text style={styles.infoValue}>{new Date(transaction.date).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: true })}</Text>
                     </View>
 
                     {transaction.note && (

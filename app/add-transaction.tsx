@@ -33,7 +33,12 @@ export default function AddTransactionScreen() {
     const [loading, setLoading] = useState(false);
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+    const [showMonthYearGrid, setShowMonthYearGrid] = useState(false);
+    const [gridMode, setGridMode] = useState<'month' | 'year'>('month');
+    const [showTimePicker, setShowTimePicker] = useState(false);
     const [suggestions, setSuggestions] = useState<string[]>([]);
+
+    const today = new Date();
 
     useEffect(() => {
         // Clear category if type changes
@@ -199,16 +204,30 @@ export default function AddTransactionScreen() {
                             </TouchableOpacity>
                         </View>
 
-                        {/* Date Field */}
-                        <View style={styles.fieldGroup}>
-                            <Text style={styles.fieldLabel}>DATE</Text>
-                            <TouchableOpacity
-                                style={styles.dateInputContainer}
-                                onPress={() => setShowDatePicker(true)}
-                            >
-                                <Text style={styles.dateText}>{formatDate(date)}</Text>
-                                <IconSymbol name="calendar" size={20} color="#666" />
-                            </TouchableOpacity>
+                        {/* Date & Time Row */}
+                        <View style={styles.dateTimeRow}>
+                            <View style={[styles.fieldGroup, { flex: 1.5, marginRight: 10 }]}>
+                                <Text style={styles.fieldLabel}>DATE</Text>
+                                <TouchableOpacity
+                                    style={styles.dateInputContainer}
+                                    onPress={() => setShowDatePicker(true)}
+                                >
+                                    <Text style={styles.dateText}>{date.toLocaleDateString('en-GB')}</Text>
+                                    <IconSymbol name="calendar" size={18} color="#666" />
+                                </TouchableOpacity>
+                            </View>
+
+                            <View style={[styles.fieldGroup, { flex: 1 }]}>
+                                <Text style={styles.fieldLabel}>TIME</Text>
+                                <TouchableOpacity
+                                    style={styles.dateInputContainer}
+                                    onPress={() => setShowTimePicker(true)}
+                                >
+                                    <Text style={styles.dateText}>
+                                        {date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
                         </View>
 
                         {/* Note Field */}
@@ -242,29 +261,236 @@ export default function AddTransactionScreen() {
             {/* Date Picker Modal */}
             <Modal
                 isVisible={showDatePicker}
-                onBackdropPress={() => setShowDatePicker(false)}
+                onBackdropPress={() => {
+                    setShowDatePicker(false);
+                    setShowMonthYearGrid(false);
+                    setGridMode('month');
+                }}
                 style={styles.modal}
             >
                 <View style={styles.pickerContainer}>
                     <View style={styles.pickerHeader}>
-                        <Text style={styles.pickerTitle}>Select Date</Text>
-                        <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                        <Text style={styles.pickerTitle}>Select {gridMode === 'year' ? 'Year' : 'Date'}</Text>
+                        <TouchableOpacity onPress={() => {
+                            setShowDatePicker(false);
+                            setShowMonthYearGrid(false);
+                            setGridMode('month');
+                        }}>
                             <IconSymbol name="plus" size={24} color="#666" style={{ transform: [{ rotate: '45deg' }] }} />
                         </TouchableOpacity>
                     </View>
-                    <Calendar
-                        current={dateString}
-                        onDayPress={(day: any) => {
-                            setDate(new Date(day.timestamp));
-                            setShowDatePicker(false);
-                        }}
-                        markedDates={{ [dateString]: { selected: true, selectedColor: '#429690' } }}
-                        theme={{
-                            todayTextColor: '#429690',
-                            arrowColor: '#429690',
-                            selectedDayBackgroundColor: '#429690',
-                        }}
-                    />
+
+                    {showMonthYearGrid ? (
+                        <View style={styles.gridContainer}>
+                            {gridMode === 'year' ? (
+                                <View>
+                                    <View style={styles.gridHeader}>
+                                        <Text style={styles.gridHeaderText}>Select Year (2000 - {today.getFullYear()})</Text>
+                                    </View>
+                                    <ScrollView style={{ maxHeight: 300 }}>
+                                        <View style={styles.yearGrid}>
+                                            {Array.from({ length: today.getFullYear() - 2000 + 1 }, (_, i) => 2000 + i).reverse().map(year => (
+                                                <TouchableOpacity
+                                                    key={year}
+                                                    style={[styles.monthGridItem, date.getFullYear() === year && styles.monthGridItemActive]}
+                                                    onPress={() => {
+                                                        const newDate = new Date(date);
+                                                        newDate.setFullYear(year);
+                                                        // Ensure if we pick current year, month isn't future
+                                                        if (year === today.getFullYear() && newDate.getMonth() > today.getMonth()) {
+                                                            newDate.setMonth(today.getMonth());
+                                                        }
+                                                        setDate(newDate);
+                                                        setGridMode('month');
+                                                    }}
+                                                >
+                                                    <Text style={[styles.monthGridText, date.getFullYear() === year && styles.monthGridTextActive]}>{year}</Text>
+                                                </TouchableOpacity>
+                                            ))}
+                                        </View>
+                                    </ScrollView>
+                                </View>
+                            ) : (
+                                <View>
+                                    <View style={styles.gridYearRow}>
+                                        <TouchableOpacity onPress={() => {
+                                            const newDate = new Date(date);
+                                            newDate.setFullYear(date.getFullYear() - 1);
+                                            setDate(newDate);
+                                        }}>
+                                            <IconSymbol name="chevron.left" size={24} color="#429690" />
+                                        </TouchableOpacity>
+                                        <TouchableOpacity onPress={() => setGridMode('year')}>
+                                            <Text style={styles.gridYearText}>{date.getFullYear()} (Tap to change)</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            onPress={() => {
+                                                const newDate = new Date(date);
+                                                if (date.getFullYear() < today.getFullYear()) {
+                                                    newDate.setFullYear(date.getFullYear() + 1);
+                                                    setDate(newDate);
+                                                }
+                                            }}
+                                            disabled={date.getFullYear() >= today.getFullYear()}
+                                            style={{ opacity: date.getFullYear() >= today.getFullYear() ? 0.3 : 1 }}
+                                        >
+                                            <IconSymbol name="chevron.right" size={24} color="#429690" />
+                                        </TouchableOpacity>
+                                    </View>
+
+                                    <View style={styles.monthGrid}>
+                                        {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, idx) => {
+                                            const isFutureMonth = date.getFullYear() === today.getFullYear() && idx > today.getMonth();
+                                            return (
+                                                <TouchableOpacity
+                                                    key={m}
+                                                    disabled={isFutureMonth}
+                                                    style={[
+                                                        styles.monthGridItem,
+                                                        date.getMonth() === idx && styles.monthGridItemActive,
+                                                        isFutureMonth && { opacity: 0.2 }
+                                                    ]}
+                                                    onPress={() => {
+                                                        const newDate = new Date(date);
+                                                        newDate.setMonth(idx);
+                                                        setDate(newDate);
+                                                        setShowMonthYearGrid(false);
+                                                    }}
+                                                >
+                                                    <Text style={[styles.monthGridText, date.getMonth() === idx && styles.monthGridTextActive]}>{m}</Text>
+                                                </TouchableOpacity>
+                                            );
+                                        })}
+                                    </View>
+                                </View>
+                            )}
+
+                            <TouchableOpacity
+                                style={styles.closeGridBtn}
+                                onPress={() => {
+                                    if (gridMode === 'year') {
+                                        setGridMode('month');
+                                    } else {
+                                        setShowMonthYearGrid(false);
+                                    }
+                                }}
+                            >
+                                <Text style={styles.closeGridBtnText}>{gridMode === 'year' ? 'Back to Months' : 'Back to Calendar'}</Text>
+                            </TouchableOpacity>
+                        </View>
+                    ) : (
+                        <Calendar
+                            key={`${date.getFullYear()}-${date.getMonth()}`}
+                            current={dateString}
+                            maxDate={today.toISOString().split('T')[0]}
+                            renderHeader={() => (
+                                <TouchableOpacity
+                                    style={styles.calendarHeaderContainer}
+                                    onPress={() => setShowMonthYearGrid(true)}
+                                >
+                                    <Text style={styles.calendarHeaderText}>
+                                        {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][date.getMonth()]} {date.getFullYear()}
+                                    </Text>
+                                    <IconSymbol name="chevron.right" size={14} color="#429690" style={{ transform: [{ rotate: '90deg' }], marginLeft: 5 }} />
+                                </TouchableOpacity>
+                            )}
+                            onDayPress={(day: any) => {
+                                // Preserving hours and minutes
+                                const newDate = new Date(day.timestamp);
+                                newDate.setHours(date.getHours());
+                                newDate.setMinutes(date.getMinutes());
+                                setDate(newDate);
+                                setShowDatePicker(false);
+                            }}
+                            onPressArrowLeft={(subtractMonth: any) => {
+                                subtractMonth();
+                                const d = new Date(date);
+                                d.setMonth(d.getMonth() - 1);
+                                setDate(d);
+                            }}
+                            onPressArrowRight={(addMonth: any) => {
+                                // Check if next month is in the future
+                                const nextMonth = new Date(date);
+                                nextMonth.setMonth(date.getMonth() + 1);
+                                if (nextMonth <= today || nextMonth.getMonth() <= today.getMonth() && nextMonth.getFullYear() === today.getFullYear()) {
+                                    addMonth();
+                                    setDate(nextMonth);
+                                }
+                            }}
+                            markedDates={{ [dateString]: { selected: true, selectedColor: '#429690' } }}
+                            theme={{
+                                todayTextColor: '#429690',
+                                arrowColor: '#429690',
+                                selectedDayBackgroundColor: '#429690',
+                                textMonthFontWeight: '700',
+                            }}
+                        />
+                    )}
+                </View>
+            </Modal>
+
+            {/* Time Picker Modal */}
+            <Modal
+                isVisible={showTimePicker}
+                onBackdropPress={() => setShowTimePicker(false)}
+                style={styles.modal}
+            >
+                <View style={styles.pickerContainer}>
+                    <View style={styles.pickerHeader}>
+                        <Text style={styles.pickerTitle}>Select Time</Text>
+                        <TouchableOpacity onPress={() => setShowTimePicker(false)}>
+                            <IconSymbol name="plus" size={24} color="#666" style={{ transform: [{ rotate: '45deg' }] }} />
+                        </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.timePickerContainer}>
+                        <View style={styles.timeColumn}>
+                            <TouchableOpacity onPress={() => {
+                                const d = new Date(date);
+                                d.setHours((d.getHours() + 1) % 24);
+                                setDate(d);
+                            }}>
+                                <IconSymbol name="chevron.right" size={30} color="#429690" style={{ transform: [{ rotate: '-90deg' }] }} />
+                            </TouchableOpacity>
+                            <Text style={styles.timeValue}>{date.getHours().toString().padStart(2, '0')}</Text>
+                            <TouchableOpacity onPress={() => {
+                                const d = new Date(date);
+                                d.setHours((d.getHours() - 1 + 24) % 24);
+                                setDate(d);
+                            }}>
+                                <IconSymbol name="chevron.right" size={30} color="#429690" style={{ transform: [{ rotate: '90deg' }] }} />
+                            </TouchableOpacity>
+                            <Text style={styles.timeLabel}>Hours</Text>
+                        </View>
+
+                        <Text style={styles.timeSeparator}>:</Text>
+
+                        <View style={styles.timeColumn}>
+                            <TouchableOpacity onPress={() => {
+                                const d = new Date(date);
+                                d.setMinutes((d.getMinutes() + 1) % 60);
+                                setDate(d);
+                            }}>
+                                <IconSymbol name="chevron.right" size={30} color="#429690" style={{ transform: [{ rotate: '-90deg' }] }} />
+                            </TouchableOpacity>
+                            <Text style={styles.timeValue}>{date.getMinutes().toString().padStart(2, '0')}</Text>
+                            <TouchableOpacity onPress={() => {
+                                const d = new Date(date);
+                                d.setMinutes((d.getMinutes() - 1 + 60) % 60);
+                                setDate(d);
+                            }}>
+                                <IconSymbol name="chevron.right" size={30} color="#429690" style={{ transform: [{ rotate: '90deg' }] }} />
+                            </TouchableOpacity>
+                            <Text style={styles.timeLabel}>Minutes</Text>
+                        </View>
+                    </View>
+
+                    <TouchableOpacity
+                        style={styles.primaryButton}
+                        onPress={() => setShowTimePicker(false)}
+                    >
+                        <Text style={styles.primaryButtonText}>Set Time</Text>
+                    </TouchableOpacity>
                 </View>
             </Modal>
 
@@ -354,6 +580,159 @@ const styles = StyleSheet.create({
     suggestionText: { color: '#429690', fontSize: 12, fontWeight: '500' },
     categorySelectItem: { flex: 1, alignItems: 'center', marginBottom: 20, padding: 10 },
     categorySelectIcon: { width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
-    categorySelectName: { fontSize: 12, color: '#666', textAlign: 'center' }
+    categorySelectName: { fontSize: 12, color: '#666', textAlign: 'center' },
+    selectorScroll: { marginBottom: 15 },
+    selectorBadge: {
+        paddingHorizontal: 15,
+        paddingVertical: 8,
+        borderRadius: 20,
+        backgroundColor: '#F5F5F5',
+        marginRight: 10,
+        borderWidth: 1,
+        borderColor: '#EEE',
+    },
+    selectorBadgeActive: {
+        backgroundColor: '#429690',
+        borderColor: '#429690',
+    },
+    selectorBadgeText: {
+        fontSize: 13,
+        color: '#666',
+        fontWeight: '600',
+    },
+    selectorBadgeTextActive: {
+        color: 'white',
+    },
+    monthYearHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#F0F6F5',
+        paddingVertical: 10,
+        borderRadius: 12,
+        marginBottom: 15,
+        gap: 8,
+    },
+    monthYearHeaderText: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#2E7E78',
+    },
+    gridContainer: {
+        padding: 10,
+        backgroundColor: 'white',
+        borderRadius: 20,
+    },
+    gridYearRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 20,
+        paddingHorizontal: 20,
+    },
+    gridYearText: {
+        fontSize: 20,
+        fontWeight: '800',
+        color: '#333',
+    },
+    monthGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+        gap: 10,
+    },
+    monthGridItem: {
+        width: '30%',
+        paddingVertical: 12,
+        alignItems: 'center',
+        borderRadius: 12,
+        backgroundColor: '#F5F5F5',
+        marginBottom: 5,
+    },
+    monthGridItemActive: {
+        backgroundColor: '#429690',
+    },
+    monthGridText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#666',
+    },
+    monthGridTextActive: {
+        color: 'white',
+    },
+    calendarHeaderContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 5,
+    },
+    calendarHeaderText: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#2E7E78',
+    },
+    closeGridBtn: {
+        marginTop: 20,
+        backgroundColor: '#F0F6F5',
+        paddingVertical: 12,
+        borderRadius: 12,
+        alignItems: 'center',
+    },
+    closeGridBtnText: {
+        color: '#429690',
+        fontWeight: '700',
+        fontSize: 14,
+    },
+    dateTimeRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    gridHeader: {
+        paddingBottom: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#EEE',
+        marginBottom: 15,
+        alignItems: 'center',
+    },
+    gridHeaderText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#666',
+    },
+    yearGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+        paddingBottom: 20,
+    },
+    timePickerContainer: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: 30,
+        gap: 15,
+    },
+    timeColumn: {
+        alignItems: 'center',
+        width: 80,
+    },
+    timeValue: {
+        fontSize: 48,
+        fontWeight: '800',
+        color: '#333',
+        marginVertical: 10,
+    },
+    timeSeparator: {
+        fontSize: 48,
+        fontWeight: '800',
+        color: '#AAA',
+        marginTop: -10,
+    },
+    timeLabel: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#999',
+        marginTop: 5,
+        textTransform: 'uppercase',
+    },
 });
 
