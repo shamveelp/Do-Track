@@ -55,17 +55,20 @@ export default function HomeScreen() {
 
       // Apply Filters
       if (filterType === 'year' && selectedYear !== 'All Transactions') {
-        const start = `${selectedYear}-01-01`;
-        const end = `${selectedYear}-12-31`;
+        const start = `${selectedYear}-01-01T00:00:00`;
+        const end = `${selectedYear}-12-31T23:59:59`;
         query = query.gte('date', start).lte('date', end);
       } else if (filterType === 'month' && selectedMonth !== null) {
         const year = selectedYear === 'All Transactions' ? '2026' : selectedYear;
-        const start = `${year}-${String(selectedMonth + 1).padStart(2, '0')}-01`;
+        const start = `${year}-${String(selectedMonth + 1).padStart(2, '0')}-01T00:00:00`;
         const lastDay = new Date(parseInt(year), selectedMonth + 1, 0).getDate();
-        const end = `${year}-${String(selectedMonth + 1).padStart(2, '0')}-${lastDay}`;
+        const end = `${year}-${String(selectedMonth + 1).padStart(2, '0')}-${lastDay}T23:59:59`;
         query = query.gte('date', start).lte('date', end);
-      } else if (filterType === 'custom' && customRange) {
-        query = query.gte('date', customRange.from).lte('date', customRange.to);
+      } else if (filterType === 'custom' && customRange && customRange.from) {
+        query = query.gte('date', `${customRange.from}T00:00:00`);
+        if (customRange.to) {
+          query = query.lte('date', `${customRange.to}T23:59:59`);
+        }
       }
 
       // Fetch 5 recent for list

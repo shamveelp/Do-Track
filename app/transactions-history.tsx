@@ -33,7 +33,7 @@ export default function TransactionsHistoryScreen() {
     );
 
     const fetchTransactions = async (refresh = false) => {
-        if (loadingMore || (!hasMore && !refresh)) return;
+        if ((loading && !refresh) || loadingMore || (!hasMore && !refresh)) return;
 
         if (refresh) setLoading(true);
         else setLoadingMore(true);
@@ -55,7 +55,12 @@ export default function TransactionsHistoryScreen() {
                 setPage(1);
                 setHasMore(data?.length === PAGE_SIZE);
             } else {
-                setTransactions(prev => [...prev, ...(data || [])]);
+                setTransactions(prev => {
+                    const newData = data || [];
+                    const existingIds = new Set(prev.map(t => t.id));
+                    const uniqueNewData = newData.filter(t => !existingIds.has(t.id));
+                    return [...prev, ...uniqueNewData];
+                });
                 setPage(prev => prev + 1);
                 setHasMore(data?.length === PAGE_SIZE);
             }
