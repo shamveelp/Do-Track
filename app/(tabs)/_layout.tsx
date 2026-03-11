@@ -1,20 +1,27 @@
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Tabs } from 'expo-router';
-import React from 'react';
-import { Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Tabs, useRouter } from 'expo-router'; // Added useRouter
+import {
+  Platform,
+  StyleSheet,
+  TouchableOpacity,
+  View
+} from 'react-native';
 
-const CustomFabButton = ({ children, onPress }: any) => (
-  <TouchableOpacity
-    style={styles.fabContainer}
-    onPress={onPress}
-    activeOpacity={0.7}
-  >
-    <View style={styles.fabInner}>
-      <IconSymbol name="plus" size={32} color="white" />
-    </View>
-  </TouchableOpacity>
-);
+const CustomFabButton = ({ children, onPress }: any) => {
+  const router = useRouter();
+  return (
+    <TouchableOpacity
+      style={styles.fabContainer}
+      onPress={() => router.push('/add-transaction')}
+      activeOpacity={0.7}
+    >
+      <View style={styles.fabInner}>
+        <IconSymbol name="plus" size={32} color="white" />
+      </View>
+    </TouchableOpacity>
+  );
+};
 
 export default function TabLayout() {
   const colorScheme = useColorScheme() ?? 'light';

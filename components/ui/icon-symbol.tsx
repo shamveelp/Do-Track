@@ -28,6 +28,10 @@ const MAPPING: IconMapping = {
   'wallet': 'account-balance-wallet',
   'person': 'person',
   'chart.bar': 'bar-chart',
+  'chevron.left': 'chevron-left',
+  'calendar': 'calendar-today',
+  'paperclip': 'attach-file',
+  'camera': 'photo-camera',
 };
 
 /**
