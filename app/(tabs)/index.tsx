@@ -12,7 +12,7 @@ const TRANSACTIONS = [
     id: '1',
     name: 'Upwork',
     date: 'Today',
-    amount: '+ $ 850.00',
+    amount: '+ ₹ 850.00',
     type: 'income',
     icon: 'https://img.icons8.com/color/48/upwork.png', // Fallback if logo not found
   },
@@ -20,7 +20,7 @@ const TRANSACTIONS = [
     id: '2',
     name: 'Transfer',
     date: 'Yesterday',
-    amount: '- $ 85.00',
+    amount: '- ₹ 85.00',
     type: 'expense',
     avatar: require('@/assets/images/friend1.png'),
   },
@@ -28,7 +28,7 @@ const TRANSACTIONS = [
     id: '3',
     name: 'Paypal',
     date: 'Jan 30, 2022',
-    amount: '+ $ 1,406.00',
+    amount: '+ ₹ 1,406.00',
     type: 'income',
     icon: 'https://img.icons8.com/color/48/paypal.png',
   },
@@ -36,7 +36,7 @@ const TRANSACTIONS = [
     id: '4',
     name: 'Youtube',
     date: 'Jan 16, 2022',
-    amount: '- $ 11.99',
+    amount: '- ₹ 11.99',
     type: 'expense',
     icon: 'https://img.icons8.com/color/48/youtube-play.png',
   },
@@ -91,7 +91,7 @@ export default function HomeScreen() {
               </View>
               <IconSymbol name="ellipsis" size={24} color="white" />
             </View>
-            <Text style={styles.balanceAmount}>$ 2,548.00</Text>
+            <Text style={styles.balanceAmount}>₹ 2,548.00</Text>
 
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
@@ -100,7 +100,7 @@ export default function HomeScreen() {
                 </View>
                 <View>
                   <Text style={styles.statLabel}>Income</Text>
-                  <Text style={styles.statValue}>$ 1,840.00</Text>
+                  <Text style={styles.statValue}>₹ 1,840.00</Text>
                 </View>
               </View>
 
@@ -110,7 +110,7 @@ export default function HomeScreen() {
                 </View>
                 <View>
                   <Text style={styles.statLabel}>Expenses</Text>
-                  <Text style={styles.statValue}>$ 284.00</Text>
+                  <Text style={styles.statValue}>₹ 284.00</Text>
                 </View>
               </View>
             </View>
