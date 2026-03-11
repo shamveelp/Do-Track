@@ -2,10 +2,10 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { getCategoryById } from '@/constants/categories';
 import { supabase } from '@/lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function TransactionDetailScreen() {
@@ -14,9 +14,11 @@ export default function TransactionDetailScreen() {
     const [loading, setLoading] = useState(true);
     const [transaction, setTransaction] = useState<any>(null);
 
-    useEffect(() => {
-        fetchTransaction();
-    }, [id]);
+    useFocusEffect(
+        useCallback(() => {
+            fetchTransaction();
+        }, [id])
+    );
 
     const fetchTransaction = async () => {
         try {
@@ -33,6 +35,38 @@ export default function TransactionDetailScreen() {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleDelete = async () => {
+        Alert.alert(
+            'Delete Transaction',
+            'Are you sure you want to delete this transaction?',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            setLoading(true);
+                            const { error } = await supabase
+                                .from('transactions')
+                                .delete()
+                                .eq('id', id);
+
+                            if (error) throw error;
+
+                            Alert.alert('Success', 'Transaction deleted successfully', [
+                                { text: 'OK', onPress: () => router.back() }
+                            ]);
+                        } catch (error: any) {
+                            Alert.alert('Error', error.message || 'Failed to delete transaction');
+                            setLoading(false);
+                        }
+                    }
+                }
+            ]
+        );
     };
 
     if (loading) {
@@ -107,9 +141,23 @@ export default function TransactionDetailScreen() {
                     )}
                 </View>
 
-                <TouchableOpacity style={styles.editBtn}>
-                    <Text style={styles.editBtnText}>Download Receipt</Text>
-                </TouchableOpacity>
+                <View style={styles.actionButtons}>
+                    <TouchableOpacity
+                        style={[styles.btn, styles.editBtn]}
+                        onPress={() => router.push({ pathname: '/add-transaction', params: { editId: id } } as any)}
+                    >
+                        <IconSymbol name="pencil" size={20} color="white" />
+                        <Text style={styles.btnText}>Edit Transaction</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.btn, styles.deleteBtn]}
+                        onPress={handleDelete}
+                    >
+                        <IconSymbol name="trash" size={20} color="#EF4444" />
+                        <Text style={[styles.btnText, { color: '#EF4444' }]}>Delete Transaction</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
         </View>
     );
@@ -217,17 +265,33 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: '700',
     },
-    editBtn: {
-        backgroundColor: 'white',
-        borderWidth: 1,
-        borderColor: '#429690',
+    actionButtons: {
+        marginTop: 30,
+        gap: 15,
+    },
+    btn: {
+        flexDirection: 'row',
         paddingVertical: 18,
         borderRadius: 18,
         alignItems: 'center',
-        marginTop: 30,
+        justifyContent: 'center',
+        gap: 10,
     },
-    editBtnText: {
-        color: '#429690',
+    editBtn: {
+        backgroundColor: '#429690',
+        shadowColor: '#429690',
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.2,
+        shadowRadius: 10,
+        elevation: 5,
+    },
+    deleteBtn: {
+        backgroundColor: 'white',
+        borderWidth: 1,
+        borderColor: '#FEE2E2',
+    },
+    btnText: {
+        color: 'white',
         fontSize: 16,
         fontWeight: '700',
     },

@@ -1,17 +1,19 @@
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { useRouter } from 'expo-router';
+import { getCategoryById } from '@/constants/categories';
+import { supabase } from '@/lib/supabase';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
+    ActivityIndicator,
     Dimensions,
-    Image,
     ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
-    View,
+    View
 } from 'react-native';
-import { LineChart } from 'react-native-chart-kit';
+import { LineChart, PieChart } from 'react-native-chart-kit';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
@@ -45,9 +47,120 @@ const TOP_SPENDING = [
 
 const PERIOD_TABS = ['Day', 'Week', 'Month', 'Year'];
 
+const CATEGORY_COLORS: Record<string, string> = {
+    food: '#FF6B6B',
+    shopping: '#4ECDC4',
+    transportation: '#45B7D1',
+    entertainment: '#96CEB4',
+    education: '#FFEEAD',
+    health: '#D4A5A5',
+    housing: '#9B59B6',
+    others: '#34495E',
+    salary: '#22C55E',
+    electronics: '#3498DB'
+};
+
+const getCategoryColor = (cid: string) => CATEGORY_COLORS[cid] || `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}`;
+
 export default function StatisticsScreen() {
     const router = useRouter();
-    const [selectedTab, setSelectedTab] = useState('Day');
+    const [selectedTab, setSelectedTab] = useState('Month');
+    const [loading, setLoading] = useState(true);
+    const [transactions, setTransactions] = useState<any[]>([]);
+    const [lineData, setLineData] = useState<any>({ labels: [], datasets: [{ data: [] }] });
+    const [pieData, setPieData] = useState<any[]>([]);
+    const [totalSpent, setTotalSpent] = useState(0);
+
+    useFocusEffect(
+        useCallback(() => {
+            fetchStatsData();
+        }, [selectedTab])
+    );
+
+    const fetchStatsData = async () => {
+        try {
+            setLoading(true);
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            let startDate = new Date();
+            const now = new Date();
+
+            if (selectedTab === 'Day') {
+                startDate.setHours(0, 0, 0, 0);
+            } else if (selectedTab === 'Week') {
+                startDate.setDate(now.getDate() - 7);
+            } else if (selectedTab === 'Month') {
+                startDate.setMonth(now.getMonth() - 1);
+            } else if (selectedTab === 'Year') {
+                startDate.setFullYear(now.getFullYear() - 1);
+            }
+
+            const { data, error } = await supabase
+                .from('transactions')
+                .select('*')
+                .gte('date', startDate.toISOString())
+                .order('date', { ascending: true });
+
+            if (error) throw error;
+            setTransactions(data || []);
+
+            // Process Line Chart Data
+            const labels: string[] = [];
+            const amounts: number[] = [];
+
+            // Group for trend
+            const groups: Record<string, number> = {};
+            data?.forEach(t => {
+                if (t.type === 'expense') {
+                    const d = new Date(t.date);
+                    let key = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+                    if (selectedTab === 'Year') key = d.toLocaleDateString('en-GB', { month: 'short' });
+                    groups[key] = (groups[key] || 0) + parseFloat(t.amount);
+                }
+            });
+
+            Object.entries(groups).slice(-6).forEach(([label, amt]) => {
+                labels.push(label);
+                amounts.push(amt);
+            });
+
+            if (amounts.length === 0) {
+                setLineData({ labels: ['No Data'], datasets: [{ data: [0] }] });
+            } else {
+                setLineData({ labels, datasets: [{ data: amounts }] });
+            }
+
+            // Process Pie Chart Data
+            const catGroups: Record<string, number> = {};
+            let total = 0;
+            data?.forEach(t => {
+                if (t.type === 'expense') {
+                    catGroups[t.category] = (catGroups[t.category] || 0) + parseFloat(t.amount);
+                    total += parseFloat(t.amount);
+                }
+            });
+
+            const processedPie = Object.entries(catGroups).map(([cid, amt]) => {
+                const cat = getCategoryById(cid);
+                return {
+                    name: cat.name,
+                    amount: amt,
+                    color: getCategoryColor(cid),
+                    legendFontColor: '#7F7F7F',
+                    legendFontSize: 12
+                };
+            }).sort((a, b) => b.amount - a.amount);
+
+            setPieData(processedPie);
+            setTotalSpent(total);
+
+        } catch (error) {
+            console.error('Error fetching stats:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <View style={styles.container}>
@@ -88,55 +201,53 @@ export default function StatisticsScreen() {
 
                 {/* Chart Section */}
                 <View style={styles.chartContainer}>
-                    <LineChart
-                        data={{
-                            labels: ['Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'],
-                            datasets: [
-                                {
-                                    data: [15, 25, 20, 38, 20, 28],
-                                },
-                            ],
-                        }}
-                        width={width - 20}
-                        height={200}
-                        chartConfig={{
-                            backgroundColor: '#fff',
-                            backgroundGradientFrom: '#fff',
-                            backgroundGradientTo: '#fff',
-                            decimalPlaces: 0,
-                            color: (opacity = 1) => `rgba(66, 150, 144, ${opacity})`,
-                            labelColor: (opacity = 1) => `rgba(170, 170, 170, ${opacity})`,
-                            style: {
-                                borderRadius: 16,
-                            },
-                            propsForDots: {
-                                r: '0', // Hide all dots initially
-                            },
-                            fillShadowGradient: '#429690',
-                            fillShadowGradientOpacity: 0.1,
-                            propsForLabels: {
-                                fontSize: 12,
-                            },
-                        }}
-                        bezier
-                        withDots={false}
-                        withInnerLines={false}
-                        withOuterLines={false}
-                        withVerticalLines={false}
-                        withHorizontalLabels={false}
-                        style={styles.chart}
-                    />
+                    {loading ? (
+                        <ActivityIndicator size="large" color="#429690" style={{ marginTop: 50 }} />
+                    ) : (
+                        <LineChart
+                            data={lineData}
+                            width={width - 40}
+                            height={200}
+                            chartConfig={{
+                                backgroundColor: '#fff',
+                                backgroundGradientFrom: '#fff',
+                                backgroundGradientTo: '#fff',
+                                decimalPlaces: 0,
+                                color: (opacity = 1) => `rgba(66, 150, 144, ${opacity})`,
+                                labelColor: (opacity = 1) => `rgba(150, 150, 150, ${opacity})`,
+                                style: { borderRadius: 16 },
+                                propsForDots: { r: '4', strokeWidth: '2', stroke: '#429690' },
+                                fillShadowGradient: '#429690',
+                                fillShadowGradientOpacity: 0.1,
+                            }}
+                            bezier
+                            withInnerLines={false}
+                            style={styles.chart}
+                        />
+                    )}
+                </View>
 
-                    {/* Tooltip Overlay */}
-                    <View style={styles.tooltipRoot}>
-                        <View style={[styles.dotLine, { left: width * 0.41 }]}>
-                            <View style={styles.tooltipBox}>
-                                <Text style={styles.tooltipText}>₹ 1,230</Text>
-                                <View style={styles.tooltipArrow} />
-                            </View>
-                            <View style={styles.chartDotInner} />
-                            <View style={styles.chartDotOuter} />
-                            <View style={styles.dashedLine} />
+                {/* Donut Chart Section */}
+                <View style={styles.donutSection}>
+                    <Text style={styles.sectionTitle}>Expense Structure</Text>
+                    <View style={styles.donutContainer}>
+                        <PieChart
+                            data={pieData}
+                            width={width - 50}
+                            height={220}
+                            chartConfig={{
+                                color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                            }}
+                            accessor={"amount"}
+                            backgroundColor={"transparent"}
+                            paddingLeft={"15"}
+                            center={[10, 0]}
+                            absolute
+                            hasLegend={true}
+                        />
+                        <View style={styles.donutHole}>
+                            <Text style={styles.donutTotalLabel}>Total Spent</Text>
+                            <Text style={styles.donutTotalValue}>₹{totalSpent.toLocaleString()}</Text>
                         </View>
                     </View>
                 </View>
@@ -144,38 +255,46 @@ export default function StatisticsScreen() {
                 {/* Top Spending Section */}
                 <View style={styles.spendingHeader}>
                     <Text style={styles.spendingTitle}>Top Spending</Text>
-                    <TouchableOpacity>
-                        <IconSymbol name="arrow.up.arrow.down" size={20} color="#AAA" />
+                    <TouchableOpacity onPress={fetchStatsData}>
+                        <IconSymbol name="arrow.clockwise" size={20} color="#429690" />
                     </TouchableOpacity>
                 </View>
 
                 <View style={styles.spendingList}>
-                    {TOP_SPENDING.map((item) => (
-                        <TouchableOpacity
-                            key={item.id}
-                            style={[styles.spendingItem, item.selected && styles.spendingItemActive]}
-                        >
-                            <View style={styles.spendingLeft}>
-                                <View style={[styles.imageBox, item.selected && styles.imageBoxActive]}>
-                                    {item.avatar ? (
-                                        <Image source={item.avatar} style={styles.spendingImage} />
-                                    ) : (
-                                        <Image source={{ uri: item.icon }} style={styles.spendingIcon} />
-                                    )}
-                                </View>
-                                <View>
-                                    <Text style={[styles.spendingName, item.selected && styles.textWhite]}>{item.name}</Text>
-                                    <Text style={[styles.spendingDate, item.selected && styles.textLight]}>{item.date}</Text>
-                                </View>
-                            </View>
-                            <Text style={[
-                                styles.spendingAmount,
-                                item.selected ? styles.textWhite : { color: '#F27480' }
-                            ]}>
-                                {item.amount}
-                            </Text>
-                        </TouchableOpacity>
-                    ))}
+                    {transactions
+                        .filter(t => t.type === 'expense')
+                        .sort((a, b) => b.amount - a.amount)
+                        .slice(0, 5)
+                        .map((item) => {
+                            const category = getCategoryById(item.category);
+                            return (
+                                <TouchableOpacity
+                                    key={item.id}
+                                    style={styles.spendingItem}
+                                    onPress={() => router.push({ pathname: '/transaction/[id]', params: { id: item.id } } as any)}
+                                >
+                                    <View style={styles.spendingLeft}>
+                                        <View style={[styles.imageBox, { backgroundColor: getCategoryColor(item.category) + '20' }]}>
+                                            <IconSymbol name={category.icon} size={24} color={getCategoryColor(item.category)} />
+                                        </View>
+                                        <View>
+                                            <Text style={styles.spendingName}>{item.title}</Text>
+                                            <Text style={styles.spendingDate}>
+                                                {new Date(item.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                    <Text style={[styles.spendingAmount, { color: '#EF4444' }]}>
+                                        - ₹{parseFloat(item.amount).toLocaleString()}
+                                    </Text>
+                                </TouchableOpacity>
+                            );
+                        })}
+                    {transactions.filter(t => t.type === 'expense').length === 0 && (
+                        <View style={{ alignItems: 'center', marginTop: 20 }}>
+                            <Text style={{ color: '#999' }}>No expenses found in this period</Text>
+                        </View>
+                    )}
                 </View>
 
                 <View style={{ height: 100 }} />
@@ -254,81 +373,12 @@ const styles = StyleSheet.create({
     },
     chartContainer: {
         marginTop: 10,
-        paddingHorizontal: 10,
-        height: 260,
+        paddingHorizontal: 20,
+        alignItems: 'center',
     },
     chart: {
-        paddingRight: 0,
-        paddingLeft: 0,
-    },
-    tooltipRoot: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        height: 200,
-    },
-    dotLine: {
-        position: 'absolute',
-        alignItems: 'center',
-        top: 70, // Matches where May sits on the chart
-    },
-    tooltipBox: {
-        backgroundColor: '#E6F4F3',
-        borderWidth: 1,
-        borderColor: '#42969040',
-        borderRadius: 8,
-        paddingHorizontal: 10,
-        paddingVertical: 5,
-        marginBottom: 10,
-        alignItems: 'center',
-    },
-    tooltipText: {
-        color: '#429690',
-        fontWeight: '700',
-        fontSize: 14,
-    },
-    tooltipArrow: {
-        position: 'absolute',
-        bottom: -6,
-        width: 0,
-        height: 0,
-        borderLeftWidth: 6,
-        borderRightWidth: 6,
-        borderTopWidth: 6,
-        borderStyle: 'solid',
-        backgroundColor: 'transparent',
-        borderLeftColor: 'transparent',
-        borderRightColor: 'transparent',
-        borderTopColor: '#E6F4F3',
-    },
-    chartDotOuter: {
-        width: 16,
-        height: 16,
-        borderRadius: 8,
-        backgroundColor: 'rgba(66, 150, 144, 0.2)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        position: 'absolute',
-        top: 52,
-    },
-    chartDotInner: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: '#429690',
-        zIndex: 2,
-        position: 'absolute',
-        top: 56,
-    },
-    dashedLine: {
-        width: 1,
-        height: 80,
-        borderWidth: 1,
-        borderColor: '#CCC',
-        borderStyle: 'dashed',
-        position: 'absolute',
-        top: 60,
+        borderRadius: 20,
+        paddingRight: 40, // Space for labels
     },
     spendingHeader: {
         flexDirection: 'row',
@@ -402,10 +452,54 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '700',
     },
-    textWhite: {
-        color: 'white',
+    donutSection: {
+        marginTop: 30,
+        paddingHorizontal: 25,
     },
-    textLight: {
-        color: 'rgba(255,255,255,0.7)',
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#333',
+        marginBottom: 15,
+    },
+    donutContainer: {
+        backgroundColor: '#fff',
+        borderRadius: 25,
+        padding: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.05,
+        shadowRadius: 15,
+        elevation: 3,
+    },
+    donutHole: {
+        position: 'absolute',
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        backgroundColor: 'white',
+        justifyContent: 'center',
+        alignItems: 'center',
+        left: '20.5%', // Perfectly centered on the PieChart circle
+        borderWidth: 6,
+        borderColor: '#F8F8F8',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 5,
+        elevation: 2,
+    },
+    donutTotalLabel: {
+        fontSize: 10,
+        color: '#999',
+        fontWeight: '600',
+        textTransform: 'uppercase',
+    },
+    donutTotalValue: {
+        fontSize: 14,
+        fontWeight: '800',
+        color: '#333',
     },
 });

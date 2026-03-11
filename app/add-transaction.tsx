@@ -2,7 +2,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '@/constants/categories';
 import { supabase } from '@/lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
 import {
@@ -23,6 +23,7 @@ import Modal from 'react-native-modal';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function AddTransactionScreen() {
+    const { editId } = useLocalSearchParams();
     const router = useRouter();
     const [type, setType] = useState<'income' | 'expense'>('expense');
     const [title, setTitle] = useState('');
@@ -41,13 +42,46 @@ export default function AddTransactionScreen() {
     const today = new Date();
 
     useEffect(() => {
-        // Clear category if type changes
-        setCategory(type === 'expense' ? EXPENSE_CATEGORIES[0] : INCOME_CATEGORIES[0]);
+        // Clear category if type changes, but ONLY if not in edit mode
+        if (!editId) {
+            setCategory(type === 'expense' ? EXPENSE_CATEGORIES[0] : INCOME_CATEGORIES[0]);
+        }
     }, [type]);
 
     useEffect(() => {
+        if (editId) {
+            fetchTransactionToEdit();
+        }
         fetchSuggestions();
-    }, []);
+    }, [editId]);
+
+    const fetchTransactionToEdit = async () => {
+        try {
+            setLoading(true);
+            const { data, error } = await supabase
+                .from('transactions')
+                .select('*')
+                .eq('id', editId)
+                .single();
+
+            if (error) throw error;
+            if (data) {
+                setType(data.type);
+                setTitle(data.title);
+                setAmount(data.amount.toString());
+                setDate(new Date(data.date));
+                setNote(data.note || '');
+                const cat = (data.type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES)
+                    .find(c => c.id === data.category);
+                if (cat) setCategory(cat);
+            }
+        } catch (error) {
+            console.error('Error fetching for edit:', error);
+            Alert.alert('Error', 'Failed to load transaction data');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const fetchSuggestions = async () => {
         try {
@@ -76,22 +110,45 @@ export default function AddTransactionScreen() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('Not authenticated');
 
-            const { error } = await supabase
-                .from('transactions')
-                .insert({
-                    user_id: user.id,
-                    title,
-                    amount: parseFloat(amount),
-                    type,
-                    category: category.id,
-                    date: date.toISOString(),
-                    note
-                });
+            if (editId) {
+                const { error } = await supabase
+                    .from('transactions')
+                    .update({
+                        title,
+                        amount: parseFloat(amount),
+                        type,
+                        category: category.id,
+                        date: date.toISOString(),
+                        note
+                    })
+                    .eq('id', editId);
+                if (error) throw error;
+            } else {
+                const { error } = await supabase
+                    .from('transactions')
+                    .insert({
+                        user_id: user.id,
+                        title,
+                        amount: parseFloat(amount),
+                        type,
+                        category: category.id,
+                        date: date.toISOString(),
+                        note
+                    });
+                if (error) throw error;
+            }
 
-            if (error) throw error;
-
-            Alert.alert('Success', 'Transaction saved successfully', [
-                { text: 'OK', onPress: () => router.back() }
+            Alert.alert('Success', `Transaction ${editId ? 'updated' : 'saved'} successfully`, [
+                {
+                    text: 'OK',
+                    onPress: () => {
+                        if (editId) {
+                            router.replace({ pathname: '/transaction/[id]', params: { id: editId } } as any);
+                        } else {
+                            router.back();
+                        }
+                    }
+                }
             ]);
         } catch (error: any) {
             Alert.alert('Error', error.message || 'Something went wrong');
@@ -122,7 +179,7 @@ export default function AddTransactionScreen() {
                         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
                             <IconSymbol name="chevron.left" size={24} color="white" />
                         </TouchableOpacity>
-                        <Text style={styles.headerTitle}>Add {type === 'expense' ? 'Expense' : 'Income'}</Text>
+                        <Text style={styles.headerTitle}>{editId ? 'Edit' : 'Add'} {type === 'expense' ? 'Expense' : 'Income'}</Text>
                         <View style={{ width: 40 }} />
                     </View>
                 </SafeAreaView>
