@@ -600,8 +600,9 @@ const styles = StyleSheet.create({
     },
     dateHeader: {
         paddingHorizontal: 25,
-        paddingVertical: 10,
-        backgroundColor: '#F8F8F8',
+        paddingVertical: 12,
+        backgroundColor: 'transparent', // Make it cleaner
+        marginTop: 5,
     },
     dateHeaderText: {
         fontSize: 14,
@@ -618,8 +619,9 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         backgroundColor: 'white',
-        padding: 15,
-        borderRadius: 18,
+        padding: 18,
+        borderRadius: 20,
+        marginHorizontal: 20, // Added space on left and right sides
         marginBottom: 12,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
