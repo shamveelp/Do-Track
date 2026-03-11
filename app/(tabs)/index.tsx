@@ -1,6 +1,7 @@
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { getCategoryById } from '@/constants/categories';
 import { supabase } from '@/lib/supabase';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -123,6 +124,7 @@ export default function HomeScreen() {
   };
 
   const userDisplayName = userData?.user_metadata?.full_name || userData?.email?.split('@')[0] || 'User';
+  const avatarUrl = userData?.user_metadata?.avatar_url || 'https://res.cloudinary.com/drmroxs00/image/upload/v1741709497/user_avatar_placeholder.png';
 
   return (
     <View style={styles.container}>
@@ -148,11 +150,25 @@ export default function HomeScreen() {
 
           <SafeAreaView edges={['top']} style={styles.headerContent}>
             <View style={styles.topRow}>
-              <View>
-                <Text style={styles.greetingText}>Good afternoon,</Text>
-                <Text style={styles.userNameText}>{userDisplayName}</Text>
-              </View>
-              <TouchableOpacity style={styles.notificationBtn}>
+              <TouchableOpacity
+                style={styles.userInfoRow}
+                onPress={() => router.push('/profile')}
+              >
+                <Image
+                  source={{ uri: avatarUrl }}
+                  style={styles.profilePicSmall}
+                  cachePolicy="disk"
+                  transition={500}
+                />
+                <View>
+                  <Text style={styles.greetingText}>Good afternoon,</Text>
+                  <Text style={styles.userNameText}>{userDisplayName}</Text>
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.notificationBtn}
+                onPress={() => router.push('/notifications')}
+              >
                 <IconSymbol name="bell" size={24} color="white" />
                 <View style={styles.notificationDot} />
               </TouchableOpacity>
@@ -529,6 +545,18 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.15)',
     padding: 10,
     borderRadius: 12,
+  },
+  userInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  profilePicSmall: {
+    width: 45,
+    height: 45,
+    borderRadius: 22.5,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
   notificationDot: {
     position: 'absolute',

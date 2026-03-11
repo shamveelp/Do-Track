@@ -1,12 +1,12 @@
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useAuth } from '@/context/auth-context';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import {
   Dimensions,
-  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -19,19 +19,21 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 const { width } = Dimensions.get('window');
 
 const MENU_ITEMS = [
-  { id: '1', title: 'Invite Friends', icon: 'diamond', color: '#EEF8F7', iconColor: '#429690' },
-  { id: '2', title: 'Account info', icon: 'person', color: '#F6F6F6', iconColor: '#777' },
-  { id: '3', title: 'Personal profile', icon: 'people', color: '#F6F6F6', iconColor: '#777' },
-  { id: '4', title: 'Message center', icon: 'envelope', color: '#F6F6F6', iconColor: '#777' },
-  { id: '5', title: 'Login and security', icon: 'shield', color: '#F6F6F6', iconColor: '#777' },
-  { id: '6', title: 'Data and privacy', icon: 'lock', color: '#F6F6F6', iconColor: '#777' },
+  { id: '1', title: 'Invite Friends', icon: 'diamond', color: '#EEF8F7', iconColor: '#429690', route: '/profile/invite' },
+  { id: '2', title: 'Account info', icon: 'person', color: '#F6F6F6', iconColor: '#777', route: '/profile/account-info' },
+  { id: '3', title: 'Personal profile', icon: 'people', color: '#F6F6F6', iconColor: '#777', route: '/profile/edit-profile' },
+  { id: '4', title: 'Message center', icon: 'envelope', color: '#F6F6F6', iconColor: '#777', route: '/notifications' },
+  { id: '5', title: 'Login and security', icon: 'shield', color: '#F6F6F6', iconColor: '#777', route: '/profile/security' },
+  { id: '6', title: 'Data and privacy', icon: 'lock', color: '#F6F6F6', iconColor: '#777', route: '/profile/privacy' },
 ];
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, signOut } = useAuth();
-  const userEmail = user?.email || 'Enjelin Morgeana';
-  const userHandle = user?.email ? `@${user.email.split('@')[0]}` : '@enjelin_morgeana';
+  const userEmail = user?.email || 'User';
+  const userHandle = user?.email ? `@${user.email.split('@')[0]}` : '@user';
+  const avatarUrl = user?.user_metadata?.avatar_url || 'https://res.cloudinary.com/drmroxs00/image/upload/v1741709497/user_avatar_placeholder.png';
+  const userDisplayName = user?.user_metadata?.full_name || userEmail;
 
   return (
     <View style={styles.container}>
@@ -49,7 +51,7 @@ export default function ProfileScreen() {
                 <IconSymbol name="chevron.left" size={24} color="white" />
               </TouchableOpacity>
               <Text style={styles.navTitle}>Profile</Text>
-              <TouchableOpacity style={styles.bellBtn}>
+              <TouchableOpacity style={styles.bellBtn} onPress={() => router.push('/notifications')}>
                 <View style={styles.blueBox}>
                   <IconSymbol name="bell" size={22} color="white" />
                   <View style={styles.orangeDot} />
@@ -59,17 +61,15 @@ export default function ProfileScreen() {
           </SafeAreaView>
         </LinearGradient>
 
-        {/* The White Curve */}
-        <View style={styles.curveWrapper}>
-          <View style={styles.whiteCurve} />
-        </View>
-
         {/* Profile Stats / Avatar Overlap */}
         <View style={styles.avatarContainer}>
           <View style={styles.avatarOutline}>
             <Image
-              source={{ uri: 'file:///C:/Users/Lenovo/.gemini/antigravity/brain/a597d2f5-17f5-4aa0-8aa9-55966d4a1fcb/user_avatar_1773203800541.png' }}
+              source={{ uri: avatarUrl }}
               style={styles.avatarImage}
+              contentFit="cover"
+              transition={500}
+              cachePolicy="disk"
             />
           </View>
         </View>
@@ -80,7 +80,7 @@ export default function ProfileScreen() {
         contentContainerStyle={styles.scrollContent}
       >
         <View style={styles.nameSection}>
-          <Text style={styles.userName}>{userEmail === 'Enjelin Morgeana' ? 'Enjelin Morgeana' : userEmail}</Text>
+          <Text style={styles.userName}>{userDisplayName}</Text>
           <Text style={styles.userHandle}>{userHandle}</Text>
         </View>
 
@@ -88,11 +88,16 @@ export default function ProfileScreen() {
         <View style={styles.menuList}>
           {MENU_ITEMS.map((item, index) => (
             <React.Fragment key={item.id}>
-              <TouchableOpacity style={styles.menuRow}>
+              <TouchableOpacity
+                style={styles.menuRow}
+                onPress={() => router.push(item.route as any)}
+              >
                 <View style={[styles.menuIconContainer, { backgroundColor: item.color }]}>
-                  <IconSymbol name={item.icon} size={24} color={item.iconColor} />
+                  <IconSymbol name={item.icon as any} size={24} color={item.iconColor} />
                 </View>
                 <Text style={styles.menuLabel}>{item.title}</Text>
+                <View style={{ flex: 1 }} />
+                <IconSymbol name="chevron.right" size={20} color="#CCC" />
               </TouchableOpacity>
               {index === 0 && <View style={styles.menuSeparator} />}
             </React.Fragment>
@@ -116,12 +121,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
   },
   headerStack: {
-    height: 280,
+    height: 320, // Taller overall stack
     backgroundColor: 'white',
   },
   headerGradient: {
-    height: 240,
+    height: 250, // Lower green section
     width: '100%',
+    borderBottomLeftRadius: 40,
+    borderBottomRightRadius: 40,
   },
   safeArea: {
     flex: 1,
@@ -162,58 +169,44 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#429690',
   },
-  curveWrapper: {
-    position: 'absolute',
-    bottom: 40,
-    width: '100%',
-    height: 100,
-    overflow: 'hidden',
-  },
-  whiteCurve: {
-    position: 'absolute',
-    bottom: -150,
-    left: -width / 2,
-    width: width * 2,
-    height: width * 2,
-    borderRadius: width,
-    backgroundColor: 'white',
-  },
   avatarContainer: {
     position: 'absolute',
-    bottom: 0,
+    bottom: 0, // Align with the bottom of headerStack
     left: 0,
     right: 0,
     alignItems: 'center',
     zIndex: 10,
   },
   avatarOutline: {
-    width: 130,
-    height: 130,
-    borderRadius: 65,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
     backgroundColor: 'white',
-    padding: 5,
-    elevation: 15,
+    padding: 6,
+    elevation: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
+    shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.15,
-    shadowRadius: 12,
+    shadowRadius: 15,
+    top: -70, // Overlap half-way (Total height 140, top -70)
   },
   avatarImage: {
     width: '100%',
     height: '100%',
-    borderRadius: 60,
+    borderRadius: 65,
   },
   scrollContent: {
-    paddingTop: 10,
+    paddingTop: 0,
     paddingBottom: 100,
+    marginTop: -40, // Pull content up
   },
   nameSection: {
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 0,
     marginBottom: 30,
   },
   userName: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '800',
     color: '#111',
   },
@@ -232,22 +225,22 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   menuIconContainer: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     justifyContent: 'center',
     alignItems: 'center',
   },
   menuLabel: {
-    fontSize: 17,
+    fontSize: 16,
     color: '#333',
     fontWeight: '600',
-    marginLeft: 18,
+    marginLeft: 15,
   },
   menuSeparator: {
     height: 1,
-    backgroundColor: '#F0F0F0',
+    backgroundColor: '#F5F5F5',
     marginVertical: 10,
-    marginLeft: 70,
+    marginLeft: 65,
   },
 });
