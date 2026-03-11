@@ -1,8 +1,10 @@
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { supabase } from '@/lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as WebBrowser from 'expo-web-browser';
 import React, { useState } from 'react';
 import {
     ActivityIndicator,
@@ -19,6 +21,8 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+WebBrowser.maybeCompleteAuthSession();
 
 const { width } = Dimensions.get('window');
 const GOOGLE_ICON = require('@/assets/images/google_icon.png');
@@ -49,13 +53,30 @@ export default function SignupScreen() {
                 password,
             });
 
-            if (error) throw error;
+            if (error) {
+                // Handle explicit errors if obfuscation is off
+                if (error.message.toLowerCase().includes('already registered') ||
+                    error.message.toLowerCase().includes('user already exists') ||
+                    error.status === 400 || error.status === 422) {
+                    Alert.alert('Account Exists', 'This email is already registered. Please try logging in instead.');
+                    return;
+                }
+                throw error;
+            }
 
-            // Redirect to OTP page
-            router.push({
-                pathname: '/otp',
-                params: { email }
-            });
+            // Supabase Obfuscation Check: 
+            // If email already exists, Supabase returns user data but empty identities array
+            if (data.user && data.user.identities && data.user.identities.length === 0) {
+                Alert.alert('Account Exists', 'This email is already registered. Please try logging in instead.');
+                return;
+            }
+
+            if (data.user) {
+                router.push({
+                    pathname: '/otp',
+                    params: { email }
+                });
+            }
         } catch (error: any) {
             Alert.alert('Sign Up Error', error.message);
         } finally {
@@ -64,8 +85,41 @@ export default function SignupScreen() {
     };
 
     const handleGoogleAuth = async () => {
-        // Placeholder for Google Auth logic with Expo Auth Session
-        Alert.alert('Google Auth', 'Setting up Google Auth with Supabase...');
+        setLoading(true);
+        try {
+            const redirectUri = Linking.createURL('/google-auth');
+            const { data, error } = await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    redirectTo: redirectUri,
+                },
+            });
+
+            if (error) throw error;
+
+            if (data.url) {
+                const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUri);
+
+                if (result.type === 'success' && result.url) {
+                    const url = result.url;
+                    const params = new URLSearchParams(url.split('#')[1] || url.split('?')[1]);
+                    const accessToken = params.get('access_token');
+                    const refreshToken = params.get('refresh_token');
+
+                    if (accessToken && refreshToken) {
+                        await supabase.auth.setSession({
+                            access_token: accessToken,
+                            refresh_token: refreshToken,
+                        });
+                        router.replace('/(tabs)');
+                    }
+                }
+            }
+        } catch (error: any) {
+            Alert.alert('Google Auth Error', error.message);
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (

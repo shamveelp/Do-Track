@@ -88,7 +88,7 @@ export default function SplashScreen() {
 
                 {/* Branding indicator at bottom */}
                 <View style={styles.footer}>
-                    <Text style={styles.footerText}>Made by AntiGravity</Text>
+                    <Text style={styles.footerText}>Made by Shamveel P</Text>
                 </View>
             </LinearGradient>
         </View>
