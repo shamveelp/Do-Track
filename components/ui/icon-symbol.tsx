@@ -32,6 +32,15 @@ const MAPPING: IconMapping = {
   'calendar': 'calendar-today',
   'paperclip': 'attach-file',
   'camera': 'photo-camera',
+  'diamond': 'diamond',
+  'people': 'people',
+  'envelope': 'email',
+  'shield': 'shield',
+  'lock': 'lock',
+  'notifications.badge': 'notifications-active',
+  'square.and.arrow.up': 'file-upload',
+  'chevron.down': 'keyboard-arrow-down',
+  'arrow.up.arrow.down': 'swap-vert',
 };
 
 /**
