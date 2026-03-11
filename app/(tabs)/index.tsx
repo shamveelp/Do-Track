@@ -1,8 +1,11 @@
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { getCategoryById } from '@/constants/categories';
+import { supabase } from '@/lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React from 'react';
-import { Dimensions, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { ActivityIndicator, Dimensions, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
@@ -51,10 +54,87 @@ const FRIENDS = [
 ];
 
 export default function HomeScreen() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [userData, setUserData] = useState<any>(null);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [stats, setStats] = useState({ balance: 0, income: 0, expense: 0 });
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchDashboardData();
+    }, [])
+  );
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      setUserData(user);
+
+      // Fetch transactions
+      const { data: trans, error: transError } = await supabase
+        .from('transactions')
+        .select('*')
+        .order('date', { ascending: false })
+        .limit(5);
+
+      if (transError) throw transError;
+      setTransactions(trans || []);
+
+      // Calculate stats (Realistically you might want a specialized RPC or view for this)
+      const { data: allTrans, error: allTransError } = await supabase
+        .from('transactions')
+        .select('amount, type');
+
+      if (allTransError) throw allTransError;
+
+      let income = 0;
+      let expense = 0;
+      allTrans?.forEach(t => {
+        const amt = parseFloat(t.amount);
+        if (t.type === 'income') income += amt;
+        else expense += amt;
+      });
+
+      setStats({
+        balance: income - expense,
+        income,
+        expense
+      });
+
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchDashboardData();
+  };
+
+  const formatCurrency = (val: number) => {
+    return '₹ ' + val.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+  };
+
+  const userDisplayName = userData?.user_metadata?.full_name || userData?.email?.split('@')[0] || 'User';
+
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-      <ScrollView bounces={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        bounces={false}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="white" />
+        }
+      >
         {/* Header Gradient */}
         <LinearGradient
           colors={['#429690', '#2E7E78']}
@@ -71,7 +151,7 @@ export default function HomeScreen() {
             <View style={styles.topRow}>
               <View>
                 <Text style={styles.greetingText}>Good afternoon,</Text>
-                <Text style={styles.userNameText}>Enjelin Morgeana</Text>
+                <Text style={styles.userNameText}>{userDisplayName}</Text>
               </View>
               <TouchableOpacity style={styles.notificationBtn}>
                 <IconSymbol name="bell" size={24} color="white" />
@@ -91,7 +171,7 @@ export default function HomeScreen() {
               </View>
               <IconSymbol name="ellipsis" size={24} color="white" />
             </View>
-            <Text style={styles.balanceAmount}>₹ 2,548.00</Text>
+            <Text style={styles.balanceAmount}>{formatCurrency(stats.balance)}</Text>
 
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
@@ -100,7 +180,7 @@ export default function HomeScreen() {
                 </View>
                 <View>
                   <Text style={styles.statLabel}>Income</Text>
-                  <Text style={styles.statValue}>₹ 1,840.00</Text>
+                  <Text style={styles.statValue}>{formatCurrency(stats.income)}</Text>
                 </View>
               </View>
 
@@ -110,7 +190,7 @@ export default function HomeScreen() {
                 </View>
                 <View>
                   <Text style={styles.statLabel}>Expenses</Text>
-                  <Text style={styles.statValue}>₹ 284.00</Text>
+                  <Text style={styles.statValue}>{formatCurrency(stats.expense)}</Text>
                 </View>
               </View>
             </View>
@@ -120,52 +200,48 @@ export default function HomeScreen() {
         {/* Transactions History */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Transactions History</Text>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/transactions-history')}>
             <Text style={styles.seeAll}>See all</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.transactionsList}>
-          {TRANSACTIONS.map((item) => (
-            <View key={item.id} style={styles.transactionItem}>
-              <View style={styles.transactionLeft}>
-                <View style={styles.iconContainer}>
-                  {item.avatar ? (
-                    <Image source={item.avatar} style={styles.avatarIcon} />
-                  ) : (
-                    <Image source={{ uri: item.icon }} style={styles.transactionIcon} />
-                  )}
-                </View>
-                <View>
-                  <Text style={styles.transactionName}>{item.name}</Text>
-                  <Text style={styles.transactionDate}>{item.date}</Text>
-                </View>
-              </View>
-              <Text style={[
-                styles.transactionAmount,
-                { color: item.type === 'income' ? '#25A969' : '#F27480' }
-              ]}>
-                {item.amount}
-              </Text>
-            </View>
-          ))}
+          {loading ? (
+            <ActivityIndicator size="small" color="#429690" />
+          ) : transactions.length === 0 ? (
+            <Text style={styles.emptyText}>No recent transactions</Text>
+          ) : (
+            transactions.map((item) => {
+              const category = getCategoryById(item.category);
+              const isExpense = item.type === 'expense';
+              return (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.transactionItem}
+                  onPress={() => router.push({ pathname: '/transaction/[id]', params: { id: item.id } } as any)}
+                >
+                  <View style={styles.transactionLeft}>
+                    <View style={[styles.iconContainer, { backgroundColor: isExpense ? '#FEE2E2' : '#DCFCE7' }]}>
+                      <IconSymbol name={category.icon} size={24} color={isExpense ? '#EF4444' : '#22C55E'} />
+                    </View>
+                    <View>
+                      <Text style={styles.transactionName}>{item.title}</Text>
+                      <Text style={styles.transactionDate}>
+                        {new Date(item.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={[
+                    styles.transactionAmount,
+                    { color: isExpense ? '#EF4444' : '#22C55E' }
+                  ]}>
+                    {isExpense ? '-' : '+'} ₹{parseFloat(item.amount).toLocaleString('en-IN')}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })
+          )}
         </View>
-
-        {/* Send Again */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Send Again</Text>
-          <TouchableOpacity>
-            <Text style={styles.seeAll}>See all</Text>
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.friendsList}>
-          {FRIENDS.map((friend, index) => (
-            <TouchableOpacity key={index} style={styles.friendAvatarContainer}>
-              <Image source={friend.avatar} style={styles.friendAvatar} />
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
 
         {/* Padding for bottom bar */}
         <View style={{ height: 100 }} />
@@ -173,6 +249,7 @@ export default function HomeScreen() {
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
@@ -362,6 +439,12 @@ const styles = StyleSheet.create({
   transactionAmount: {
     fontSize: 15,
     fontWeight: '700',
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#999',
+    marginTop: 20,
+    fontSize: 14,
   },
   friendsList: {
     paddingLeft: 25,
