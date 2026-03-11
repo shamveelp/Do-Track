@@ -72,13 +72,23 @@ export default function HomeScreen() {
         }
       }
 
-      // Fetch 5 recent for list
-      const { data: trans, error: transError } = await query
+      // Fetch recent for list - fetch 100 to be safe, then filter
+      const { data: trans, error: transError } = await supabase.from('transactions').select('*')
         .order('date', { ascending: false })
-        .limit(5);
+        .limit(100);
 
       if (transError) throw transError;
-      setTransactions(trans || []);
+
+      const fortyEightHoursAgo = new Date();
+      fortyEightHoursAgo.setHours(fortyEightHoursAgo.getHours() - 48);
+
+      // Rule: Last 15 OR all in last 2 days (48h), whichever is more
+      const filteredTrans = (trans || []).filter((t, idx) => {
+        const tDate = new Date(t.date);
+        return idx < 15 || tDate >= fortyEightHoursAgo;
+      });
+
+      setTransactions(filteredTrans);
 
       // Calculate stats for current filter
       const { data: allTrans, error: allTransError } = await query.select('amount, type');
@@ -229,39 +239,45 @@ export default function HomeScreen() {
           ) : transactions.length === 0 ? (
             <Text style={styles.emptyText}>No recent transactions</Text>
           ) : (
-            transactions.map((item) => {
+            transactions.map((item, index) => {
               const category = getCategoryById(item.category);
               const isExpense = item.type === 'expense';
+              const itemDate = new Date(item.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+              // Show date barrier
+              const showDateHeader = index === 0 ||
+                new Date(transactions[index - 1].date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) !== itemDate;
+
               return (
-                <TouchableOpacity
-                  key={item.id}
-                  style={styles.transactionItem}
-                  onPress={() => router.push({ pathname: '/transaction/[id]', params: { id: item.id } } as any)}
-                >
-                  <View style={styles.transactionLeft}>
-                    <View style={[styles.iconContainer, { backgroundColor: isExpense ? '#FEE2E2' : '#DCFCE7' }]}>
-                      <IconSymbol name={category.icon} size={24} color={isExpense ? '#EF4444' : '#22C55E'} />
+                <View key={item.id}>
+                  {showDateHeader && (
+                    <View style={styles.dateHeader}>
+                      <Text style={styles.dateHeaderText}>{itemDate}</Text>
                     </View>
-                    <View>
-                      <Text style={styles.transactionName}>{item.title}</Text>
-                      <View style={styles.transactionMetaRow}>
-                        <Text style={styles.transactionDate}>
-                          {new Date(item.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                        </Text>
-                        <View style={styles.dotSeparator} />
-                        <Text style={styles.transactionDate}>
+                  )}
+                  <TouchableOpacity
+                    style={styles.transactionItem}
+                    onPress={() => router.push({ pathname: '/transaction/[id]', params: { id: item.id } } as any)}
+                  >
+                    <View style={styles.transactionLeft}>
+                      <View style={[styles.iconContainer, { backgroundColor: isExpense ? '#FEE2E2' : '#DCFCE7' }]}>
+                        <IconSymbol name={category.icon} size={24} color={isExpense ? '#EF4444' : '#22C55E'} />
+                      </View>
+                      <View>
+                        <Text style={styles.transactionName}>{item.title}</Text>
+                        <Text style={styles.transactionTime}>
                           {new Date(item.date).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: true })}
                         </Text>
                       </View>
                     </View>
-                  </View>
-                  <Text style={[
-                    styles.transactionAmount,
-                    { color: isExpense ? '#EF4444' : '#22C55E' }
-                  ]}>
-                    {isExpense ? '-' : '+'} ₹{parseFloat(item.amount).toLocaleString('en-IN')}
-                  </Text>
-                </TouchableOpacity>
+                    <Text style={[
+                      styles.transactionAmount,
+                      { color: isExpense ? '#EF4444' : '#22C55E' }
+                    ]}>
+                      {isExpense ? '-' : '+'} ₹{parseFloat(item.amount).toLocaleString('en-IN')}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               );
             })
           )}
@@ -704,6 +720,23 @@ const styles = StyleSheet.create({
   transactionAmount: {
     fontSize: 15,
     fontWeight: '700',
+  },
+  dateHeader: {
+    paddingHorizontal: 25,
+    paddingVertical: 10,
+    marginTop: 15,
+  },
+  dateHeaderText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#999',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  transactionTime: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 2,
   },
   emptyText: {
     textAlign: 'center',
