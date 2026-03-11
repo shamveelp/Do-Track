@@ -452,7 +452,7 @@ export default function AddTransactionScreen() {
                             }}>
                                 <IconSymbol name="chevron.right" size={30} color="#429690" style={{ transform: [{ rotate: '-90deg' }] }} />
                             </TouchableOpacity>
-                            <Text style={styles.timeValue}>{date.getHours().toString().padStart(2, '0')}</Text>
+                            <Text style={styles.timeValue}>{(date.getHours() % 12 || 12).toString().padStart(2, '0')}</Text>
                             <TouchableOpacity onPress={() => {
                                 const d = new Date(date);
                                 d.setHours((d.getHours() - 1 + 24) % 24);
@@ -482,6 +482,33 @@ export default function AddTransactionScreen() {
                                 <IconSymbol name="chevron.right" size={30} color="#429690" style={{ transform: [{ rotate: '90deg' }] }} />
                             </TouchableOpacity>
                             <Text style={styles.timeLabel}>Minutes</Text>
+                        </View>
+
+                        <View style={styles.ampmColumn}>
+                            <TouchableOpacity
+                                style={[styles.ampmBtn, date.getHours() < 12 && styles.ampmBtnActive]}
+                                onPress={() => {
+                                    if (date.getHours() >= 12) {
+                                        const d = new Date(date);
+                                        d.setHours(d.getHours() - 12);
+                                        setDate(d);
+                                    }
+                                }}
+                            >
+                                <Text style={[styles.ampmBtnText, date.getHours() < 12 && styles.ampmBtnTextActive]}>AM</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.ampmBtn, date.getHours() >= 12 && styles.ampmBtnActive]}
+                                onPress={() => {
+                                    if (date.getHours() < 12) {
+                                        const d = new Date(date);
+                                        d.setHours(d.getHours() + 12);
+                                        setDate(d);
+                                    }
+                                }}
+                            >
+                                <Text style={[styles.ampmBtnText, date.getHours() >= 12 && styles.ampmBtnTextActive]}>PM</Text>
+                            </TouchableOpacity>
                         </View>
                     </View>
 
@@ -709,11 +736,11 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         paddingVertical: 30,
-        gap: 15,
+        gap: 10,
     },
     timeColumn: {
         alignItems: 'center',
-        width: 80,
+        width: 70,
     },
     timeValue: {
         fontSize: 48,
@@ -722,17 +749,42 @@ const styles = StyleSheet.create({
         marginVertical: 10,
     },
     timeSeparator: {
-        fontSize: 48,
+        fontSize: 40,
         fontWeight: '800',
         color: '#AAA',
         marginTop: -10,
     },
     timeLabel: {
-        fontSize: 12,
-        fontWeight: '600',
+        fontSize: 10,
+        fontWeight: '700',
         color: '#999',
         marginTop: 5,
         textTransform: 'uppercase',
+    },
+    ampmColumn: {
+        marginLeft: 10,
+        gap: 10,
+    },
+    ampmBtn: {
+        paddingHorizontal: 15,
+        paddingVertical: 10,
+        borderRadius: 10,
+        backgroundColor: '#F5F5F5',
+        borderWidth: 1,
+        borderColor: '#EEE',
+        alignItems: 'center',
+    },
+    ampmBtnActive: {
+        backgroundColor: '#429690',
+        borderColor: '#429690',
+    },
+    ampmBtnText: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#666',
+    },
+    ampmBtnTextActive: {
+        color: 'white',
     },
 });
 
