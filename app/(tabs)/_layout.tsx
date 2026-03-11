@@ -1,20 +1,32 @@
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Tabs } from 'expo-router';
 import React from 'react';
+import { Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
 
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+const CustomFabButton = ({ children, onPress }: any) => (
+  <TouchableOpacity
+    style={styles.fabContainer}
+    onPress={onPress}
+    activeOpacity={0.7}
+  >
+    <View style={styles.fabInner}>
+      <IconSymbol name="plus" size={32} color="white" />
+    </View>
+  </TouchableOpacity>
+);
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const colorScheme = useColorScheme() ?? 'light';
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+        tabBarActiveTintColor: '#2E7E78',
+        tabBarInactiveTintColor: '#AAAAAA',
         headerShown: false,
-        tabBarButton: HapticTab,
+        tabBarStyle: styles.tabBar,
+        tabBarShowLabel: false,
       }}>
       <Tabs.Screen
         name="index"
@@ -24,12 +36,73 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="stats"
+        options={{
+          title: 'Stats',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="chart.bar" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="fab"
+        options={{
+          tabBarButton: (props) => (
+            <CustomFabButton {...props} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="wallet"
+        options={{
+          title: 'Wallet',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="wallet" color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="explore"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: 'Profile',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="person" color={color} />,
         }}
       />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  tabBar: {
+    position: 'absolute',
+    bottom: 0,
+    height: 80,
+    backgroundColor: 'white',
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    borderTopWidth: 0,
+    paddingTop: 10,
+    paddingBottom: Platform.OS === 'ios' ? 25 : 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 20,
+  },
+  fabContainer: {
+    top: -30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 70,
+    height: 70,
+  },
+  fabInner: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#429690',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#429690',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+});
