@@ -41,6 +41,9 @@ const MAPPING: IconMapping = {
   'square.and.arrow.up': 'file-upload',
   'chevron.down': 'keyboard-arrow-down',
   'arrow.up.arrow.down': 'swap-vert',
+  'eye': 'visibility',
+  'eye.slash': 'visibility-off',
+  'google': 'web',
 };
 
 /**

@@ -34,15 +34,6 @@ export default function SplashScreen() {
                 useNativeDriver: true,
             }),
         ]).start();
-
-        // Navigate to home after 1.5 seconds (including animation time)
-        // The user asked for "1 second there", but we need some time for animation
-        // to look premium. 1200ms is a good balance.
-        const timer = setTimeout(() => {
-            router.replace('/(tabs)');
-        }, 1200);
-
-        return () => clearTimeout(timer);
     }, []);
 
     return (

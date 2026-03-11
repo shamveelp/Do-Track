@@ -1,4 +1,5 @@
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useAuth } from '@/context/auth-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -14,6 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+
 const { width } = Dimensions.get('window');
 
 const MENU_ITEMS = [
@@ -27,6 +29,9 @@ const MENU_ITEMS = [
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const { user, signOut } = useAuth();
+  const userEmail = user?.email || 'Enjelin Morgeana';
+  const userHandle = user?.email ? `@${user.email.split('@')[0]}` : '@enjelin_morgeana';
 
   return (
     <View style={styles.container}>
@@ -75,8 +80,8 @@ export default function ProfileScreen() {
         contentContainerStyle={styles.scrollContent}
       >
         <View style={styles.nameSection}>
-          <Text style={styles.userName}>Enjelin Morgeana</Text>
-          <Text style={styles.userHandle}>@enjelin_morgeana</Text>
+          <Text style={styles.userName}>{userEmail === 'Enjelin Morgeana' ? 'Enjelin Morgeana' : userEmail}</Text>
+          <Text style={styles.userHandle}>{userHandle}</Text>
         </View>
 
         {/* Menu Items */}
@@ -92,6 +97,13 @@ export default function ProfileScreen() {
               {index === 0 && <View style={styles.menuSeparator} />}
             </React.Fragment>
           ))}
+
+          <TouchableOpacity style={[styles.menuRow, { marginTop: 10 }]} onPress={signOut}>
+            <View style={[styles.menuIconContainer, { backgroundColor: '#FFEEF0' }]}>
+              <IconSymbol name="eye.slash" size={24} color="#F27480" />
+            </View>
+            <Text style={[styles.menuLabel, { color: '#F27480' }]}>Log Out</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </View>
