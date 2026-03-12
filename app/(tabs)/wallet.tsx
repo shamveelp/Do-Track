@@ -26,7 +26,7 @@ export default function WalletScreen() {
 
                 <Text style={styles.title}>Coming Soon</Text>
                 <Text style={styles.subtitle}>
-                    We're building a smarter way to manage your digital wallet and assets. Stay tuned!
+                    We&apos;re building a smarter way to manage your digital wallet and assets. Stay tuned!
                 </Text>
 
                 <View style={styles.badge}>

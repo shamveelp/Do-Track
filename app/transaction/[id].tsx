@@ -14,13 +14,7 @@ export default function TransactionDetailScreen() {
     const [loading, setLoading] = useState(true);
     const [transaction, setTransaction] = useState<any>(null);
 
-    useFocusEffect(
-        useCallback(() => {
-            fetchTransaction();
-        }, [id])
-    );
-
-    const fetchTransaction = async () => {
+    const fetchTransaction = useCallback(async () => {
         try {
             const { data, error } = await supabase
                 .from('transactions')
@@ -30,12 +24,18 @@ export default function TransactionDetailScreen() {
 
             if (error) throw error;
             setTransaction(data);
-        } catch (error) {
-            console.error('Error fetching transaction:', error);
+        } catch (err) {
+            console.error('Error fetching transaction:', err);
         } finally {
             setLoading(false);
         }
-    };
+    }, [id]);
+
+    useFocusEffect(
+        useCallback(() => {
+            fetchTransaction();
+        }, [fetchTransaction])
+    );
 
     const handleDelete = async () => {
         Alert.alert(
@@ -59,8 +59,8 @@ export default function TransactionDetailScreen() {
                             Alert.alert('Success', 'Transaction deleted successfully', [
                                 { text: 'OK', onPress: () => router.back() }
                             ]);
-                        } catch (error: any) {
-                            Alert.alert('Error', error.message || 'Failed to delete transaction');
+                        } catch (e: any) {
+                            Alert.alert('Error', e.message || 'Failed to delete transaction');
                             setLoading(false);
                         }
                     }

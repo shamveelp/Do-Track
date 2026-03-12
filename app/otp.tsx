@@ -6,7 +6,6 @@ import { StatusBar } from 'expo-status-bar';
 import React, { useRef, useState } from 'react';
 import {
     Alert,
-    Dimensions,
     KeyboardAvoidingView,
     Platform,
     StyleSheet,
@@ -17,7 +16,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const { width } = Dimensions.get('window');
 
 export default function OTPScreen() {
     const router = useRouter();
@@ -130,7 +128,7 @@ export default function OTPScreen() {
                     </TouchableOpacity>
 
                     <View style={styles.resendRow}>
-                        <Text style={styles.resendText}>Didn't receive code? </Text>
+                        <Text style={styles.resendText}>Didn&apos;t receive code? </Text>
                         <TouchableOpacity onPress={handleResendOTP}>
                             <Text style={styles.resendLink}>Resend</Text>
                         </TouchableOpacity>

@@ -6,12 +6,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Dimensions, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import Modal from 'react-native-modal';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const { width } = Dimensions.get('window');
+
 
 const YEARS = ['All Transactions', '2026', '2025', '2024'];
 const MONTHS = [
@@ -38,13 +38,7 @@ export default function HomeScreen() {
 
   const today = new Date();
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchDashboardData();
-    }, [selectedYear, selectedMonth, customRange, filterType])
-  );
-
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
@@ -115,7 +109,13 @@ export default function HomeScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [filterType, selectedYear, selectedMonth, customRange]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchDashboardData();
+    }, [fetchDashboardData])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -359,7 +359,7 @@ export default function HomeScreen() {
                               style={[styles.monthGridItem, (customRange?.from || new Date().toISOString()).startsWith(year.toString()) && styles.monthGridItemActive, { width: '23%' }]}
                               onPress={() => {
                                 const dateStr = customRange?.from || new Date().toISOString();
-                                const [_, m, d] = dateStr.split('-');
+                                const [, m, d] = dateStr.split('-');
                                 let newMonth = m;
                                 if (year === today.getFullYear() && parseInt(m) > (today.getMonth() + 1)) {
                                   newMonth = String(today.getMonth() + 1).padStart(2, '0');
@@ -420,7 +420,7 @@ export default function HomeScreen() {
                                 isFutureMonth && { opacity: 0.2 }
                               ]}
                               onPress={() => {
-                                const [y, _, d] = dateStr.split('-');
+                                const [y, , d] = dateStr.split('-');
                                 setCustomRange({ from: `${y}-${monthVal}-${d}`, to: '' });
                                 setShowMonthYearGrid(false);
                               }}
@@ -475,13 +475,13 @@ export default function HomeScreen() {
                   onPressArrowLeft={(subtractMonth: any) => {
                     subtractMonth();
                     const dateStr = customRange?.from || new Date().toISOString();
-                    const [y, m, d] = dateStr.split('-');
+                    const [y, m] = dateStr.split('-');
                     const date = new Date(parseInt(y), parseInt(m) - 2, 1);
                     setCustomRange({ from: date.toISOString().split('T')[0], to: '' });
                   }}
                   onPressArrowRight={(addMonth: any) => {
                     const dateStr = customRange?.from || new Date().toISOString();
-                    const [y, m, d] = dateStr.split('-');
+                    const [y, m] = dateStr.split('-');
                     const nextMonth = new Date(parseInt(y), parseInt(m), 1);
                     if (nextMonth <= today || (nextMonth.getMonth() <= today.getMonth() && nextMonth.getFullYear() === today.getFullYear())) {
                       addMonth();

@@ -18,33 +18,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
 
-const TOP_SPENDING = [
-    {
-        id: '1',
-        name: 'Starbucks',
-        date: 'Jan 12, 2022',
-        amount: '- ₹ 150.00',
-        icon: 'https://img.icons8.com/color/48/starbucks.png',
-        selected: false,
-    },
-    {
-        id: '2',
-        name: 'Transfer',
-        date: 'Yesterday',
-        amount: '- ₹ 85.00',
-        avatar: require('@/assets/images/friend1.png'),
-        selected: true,
-    },
-    {
-        id: '3',
-        name: 'Youtube',
-        date: 'Jan 16, 2022',
-        amount: '- ₹ 11.99',
-        icon: 'https://img.icons8.com/color/48/youtube-play.png',
-        selected: false,
-    },
-];
-
 const PERIOD_TABS = ['Day', 'Week', 'Month', 'Year'];
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -71,13 +44,7 @@ export default function StatisticsScreen() {
     const [pieData, setPieData] = useState<any[]>([]);
     const [totalSpent, setTotalSpent] = useState(0);
 
-    useFocusEffect(
-        useCallback(() => {
-            fetchStatsData();
-        }, [selectedTab])
-    );
-
-    const fetchStatsData = async () => {
+    const fetchStatsData = useCallback(async () => {
         try {
             setLoading(true);
             const { data: { user } } = await supabase.auth.getUser();
@@ -160,7 +127,15 @@ export default function StatisticsScreen() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [selectedTab]);
+
+    useFocusEffect(
+        useCallback(() => {
+            fetchStatsData();
+        }, [fetchStatsData])
+    );
+
+
 
     return (
         <View style={styles.container}>

@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function NotificationsScreen() {
     const router = useRouter();
-    const [loading, setLoading] = useState(false);
+    const [loading] = useState(false);
 
     // Mock notifications for now as there's no backend table for them yet
     const NOTIFICATIONS = [

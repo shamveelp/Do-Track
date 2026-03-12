@@ -9,7 +9,6 @@ import React, { useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
-    Dimensions,
     Image,
     KeyboardAvoidingView,
     Platform,
@@ -24,7 +23,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 WebBrowser.maybeCompleteAuthSession();
 
-const { width } = Dimensions.get('window');
+
 const GOOGLE_ICON = require('@/assets/images/google_icon.png');
 
 export default function SignupScreen() {
@@ -48,7 +47,7 @@ export default function SignupScreen() {
 
         setLoading(true);
         try {
-            const { data, error } = await supabase.auth.signUp({
+            const { data: signupData, error } = await supabase.auth.signUp({
                 email,
                 password,
             });
@@ -66,19 +65,19 @@ export default function SignupScreen() {
 
             // Supabase Obfuscation Check: 
             // If email already exists, Supabase returns user data but empty identities array
-            if (data.user && data.user.identities && data.user.identities.length === 0) {
+            if (signupData.user && signupData.user.identities && signupData.user.identities.length === 0) {
                 Alert.alert('Account Exists', 'This email is already registered. Please try logging in instead.');
                 return;
             }
 
-            if (data.user) {
+            if (signupData.user) {
                 router.push({
                     pathname: '/otp',
                     params: { email }
                 });
             }
-        } catch (error: any) {
-            Alert.alert('Sign Up Error', error.message);
+        } catch (e: any) {
+            Alert.alert('Sign Up Error', e.message);
         } finally {
             setLoading(false);
         }
@@ -88,7 +87,7 @@ export default function SignupScreen() {
         setLoading(true);
         try {
             const redirectUri = Linking.createURL('/google-auth');
-            const { data, error } = await supabase.auth.signInWithOAuth({
+            const { data: oAuthData, error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
                     redirectTo: redirectUri,
@@ -97,8 +96,8 @@ export default function SignupScreen() {
 
             if (error) throw error;
 
-            if (data.url) {
-                const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUri);
+            if (oAuthData.url) {
+                const result = await WebBrowser.openAuthSessionAsync(oAuthData.url, redirectUri);
 
                 if (result.type === 'success' && result.url) {
                     const url = result.url;
@@ -115,8 +114,8 @@ export default function SignupScreen() {
                     }
                 }
             }
-        } catch (error: any) {
-            Alert.alert('Google Auth Error', error.message);
+        } catch (e: any) {
+            Alert.alert('Google Auth Error', e.message);
         } finally {
             setLoading(false);
         }

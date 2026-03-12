@@ -1,5 +1,4 @@
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Tabs, useRouter } from 'expo-router'; // Added useRouter
 import {
   Platform,
@@ -24,7 +23,6 @@ const CustomFabButton = ({ children, onPress }: any) => {
 };
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme() ?? 'light';
 
   return (
     <Tabs

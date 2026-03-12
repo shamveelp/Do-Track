@@ -9,7 +9,6 @@ import React, { useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
-    Dimensions,
     Image,
     KeyboardAvoidingView,
     Platform,
@@ -24,7 +23,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 WebBrowser.maybeCompleteAuthSession();
 
-const { width } = Dimensions.get('window');
+
 const GOOGLE_ICON = require('@/assets/images/google_icon.png');
 
 export default function LoginScreen() {
@@ -42,7 +41,7 @@ export default function LoginScreen() {
 
         setLoading(true);
         try {
-            const { data, error } = await supabase.auth.signInWithPassword({
+            const { error } = await supabase.auth.signInWithPassword({
                 email,
                 password,
             });
@@ -51,8 +50,8 @@ export default function LoginScreen() {
 
             // Session will be handled by AuthContext and redirect automatically
             router.replace('/(tabs)');
-        } catch (error: any) {
-            Alert.alert('Login Failed', error.message);
+        } catch (e: any) {
+            Alert.alert('Login Failed', e.message);
         } finally {
             setLoading(false);
         }
@@ -182,7 +181,7 @@ export default function LoginScreen() {
 
                         {/* Footer Link */}
                         <View style={styles.footerRow}>
-                            <Text style={styles.footerText}>Don't have an account? </Text>
+                            <Text style={styles.footerText}>Don&apos;t have an account? </Text>
                             <TouchableOpacity onPress={() => router.push('/signup')}>
                                 <Text style={styles.footerLink}>Sign Up</Text>
                             </TouchableOpacity>

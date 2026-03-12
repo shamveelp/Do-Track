@@ -1,13 +1,12 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useRef } from 'react';
-import { Animated, Dimensions, StyleSheet, Text, View } from 'react-native';
+import { Animated, StyleSheet, Text, View } from 'react-native';
 
-const { width, height } = Dimensions.get('window');
+
 
 export default function SplashScreen() {
-    const router = useRouter();
+
 
     // Animation values
     const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -34,7 +33,7 @@ export default function SplashScreen() {
                 useNativeDriver: true,
             }),
         ]).start();
-    }, []);
+    }, [fadeAnim, scaleAnim, slideAnim]);
 
     return (
         <View style={styles.container}>

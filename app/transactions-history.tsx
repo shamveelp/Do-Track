@@ -35,15 +35,10 @@ export default function TransactionsHistoryScreen() {
 
     const today = new Date();
 
-    useFocusEffect(
-        useCallback(() => {
-            fetchTransactions(true);
-            fetchMonthlyStats();
-            fetchPeriodTotals();
-        }, [filterType, selectedYearFilter, selectedMonthFilter, customRange, selectedDate])
-    );
 
-    const fetchTransactions = async (refresh = false) => {
+
+
+    const fetchTransactions = useCallback(async (refresh = false) => {
         if ((loading && !refresh) || loadingMore || (!hasMore && !refresh)) return;
 
         if (refresh) setLoading(true);
@@ -57,19 +52,19 @@ export default function TransactionsHistoryScreen() {
 
             // Apply Filters based on filterType
             if (filterType === 'day') {
-                const start = `${selectedDate}T00:00:00`;
-                const end = `${selectedDate}T23:59:59`;
-                query = query.gte('date', start).lte('date', end);
+                const startDay = `${selectedDate}T00:00:00`;
+                const endDay = `${selectedDate}T23:59:59`;
+                query = query.gte('date', startDay).lte('date', endDay);
             } else if (filterType === 'year' && selectedYearFilter !== 'All') {
-                const start = `${selectedYearFilter}-01-01T00:00:00`;
-                const end = `${selectedYearFilter}-12-31T23:59:59`;
-                query = query.gte('date', start).lte('date', end);
+                const startYear = `${selectedYearFilter}-01-01T00:00:00`;
+                const endYear = `${selectedYearFilter}-12-31T23:59:59`;
+                query = query.gte('date', startYear).lte('date', endYear);
             } else if (filterType === 'month' && selectedMonthFilter !== null) {
                 const year = selectedYearFilter === 'All' ? '2026' : selectedYearFilter;
-                const start = `${year}-${String(selectedMonthFilter + 1).padStart(2, '0')}-01T00:00:00`;
+                const startMonth = `${year}-${String(selectedMonthFilter + 1).padStart(2, '0')}-01T00:00:00`;
                 const lastDay = new Date(parseInt(year), selectedMonthFilter + 1, 0).getDate();
-                const end = `${year}-${String(selectedMonthFilter + 1).padStart(2, '0')}-${lastDay}T23:59:59`;
-                query = query.gte('date', start).lte('date', end);
+                const endMonth = `${year}-${String(selectedMonthFilter + 1).padStart(2, '0')}-${lastDay}T23:59:59`;
+                query = query.gte('date', startMonth).lte('date', endMonth);
             } else if (filterType === 'custom' && customRange && customRange.from) {
                 query = query.gte('date', `${customRange.from}T00:00:00`);
                 if (customRange.to) {
@@ -103,9 +98,9 @@ export default function TransactionsHistoryScreen() {
             setLoading(false);
             setLoadingMore(false);
         }
-    };
+    }, [loading, loadingMore, hasMore, page, filterType, selectedDate, selectedYearFilter, selectedMonthFilter, customRange]);
 
-    const fetchPeriodTotals = async () => {
+    const fetchPeriodTotals = useCallback(async () => {
         try {
             let query = supabase.from('transactions').select('amount, type');
 
@@ -138,7 +133,7 @@ export default function TransactionsHistoryScreen() {
         } catch (error) {
             console.error('Error fetching period totals:', error);
         }
-    };
+    }, [filterType, selectedDate, selectedYearFilter, selectedMonthFilter, customRange]);
 
     const markedDates = Object.keys(dailyStats).reduce((acc: any, date) => {
         const { income, expense } = dailyStats[date];
@@ -160,7 +155,7 @@ export default function TransactionsHistoryScreen() {
         };
     }
 
-    const fetchMonthlyStats = async () => {
+    const fetchMonthlyStats = useCallback(async () => {
         try {
             const { data, error } = await supabase
                 .from('transactions')
@@ -177,7 +172,15 @@ export default function TransactionsHistoryScreen() {
         } catch (error) {
             console.error('Error fetching monthly stats:', error);
         }
-    };
+    }, []);
+
+    useFocusEffect(
+        useCallback(() => {
+            fetchTransactions(true);
+            fetchMonthlyStats();
+            fetchPeriodTotals();
+        }, [fetchTransactions, fetchMonthlyStats, fetchPeriodTotals])
+    );
 
     const renderTransaction = ({ item, index }: { item: any, index: number }) => {
         const category = getCategoryById(item.category);
@@ -304,7 +307,7 @@ export default function TransactionsHistoryScreen() {
                                                     key={year}
                                                     style={[styles.monthGridItem, selectedDate.startsWith(year.toString()) && styles.monthGridItemActive, { width: '23%' }]}
                                                     onPress={() => {
-                                                        const [y, m, d] = selectedDate.split('-');
+                                                        const [, m, d] = selectedDate.split('-');
                                                         setSelectedDate(`${year}-${m}-${d}`);
                                                         setGridMode('month');
                                                     }}
@@ -346,7 +349,7 @@ export default function TransactionsHistoryScreen() {
                                                     key={month}
                                                     style={[styles.monthGridItem, isSelected && styles.monthGridItemActive]}
                                                     onPress={() => {
-                                                        const [y, _, d] = selectedDate.split('-');
+                                                        const [y, , d] = selectedDate.split('-');
                                                         setSelectedDate(`${y}-${monthVal}-${d}`);
                                                         setShowMonthYearGrid(false);
                                                     }}

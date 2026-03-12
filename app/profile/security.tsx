@@ -18,7 +18,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 export default function SecurityScreen() {
     const router = useRouter();
     const [faceId, setFaceId] = useState(true);
-    const [notifications, setNotifications] = useState(true);
     const [twoStep, setTwoStep] = useState(false);
 
     const handlePasswordReset = async () => {

@@ -6,7 +6,6 @@ import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import {
-  Dimensions,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,7 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 
-const { width } = Dimensions.get('window');
+
 
 const MENU_ITEMS = [
   { id: '1', title: 'Invite Friends', icon: 'diamond', color: '#EEF8F7', iconColor: '#429690', route: '/profile/invite' },

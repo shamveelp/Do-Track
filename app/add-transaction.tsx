@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -41,21 +41,7 @@ export default function AddTransactionScreen() {
 
     const today = new Date();
 
-    useEffect(() => {
-        // Clear category if type changes, but ONLY if not in edit mode
-        if (!editId) {
-            setCategory(type === 'expense' ? EXPENSE_CATEGORIES[0] : INCOME_CATEGORIES[0]);
-        }
-    }, [type]);
-
-    useEffect(() => {
-        if (editId) {
-            fetchTransactionToEdit();
-        }
-        fetchSuggestions();
-    }, [editId]);
-
-    const fetchTransactionToEdit = async () => {
+    const fetchTransactionToEdit = useCallback(async () => {
         try {
             setLoading(true);
             const { data, error } = await supabase
@@ -81,11 +67,11 @@ export default function AddTransactionScreen() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [editId]);
 
-    const fetchSuggestions = async () => {
+    const fetchSuggestions = useCallback(async () => {
         try {
-            const { data, error } = await supabase
+            const { data } = await supabase
                 .from('transactions')
                 .select('title')
                 .limit(50);
@@ -97,7 +83,21 @@ export default function AddTransactionScreen() {
         } catch (error) {
             console.error('Error fetching suggestions:', error);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        // Clear category if type changes, but ONLY if not in edit mode
+        if (!editId) {
+            setCategory(type === 'expense' ? EXPENSE_CATEGORIES[0] : INCOME_CATEGORIES[0]);
+        }
+    }, [type, editId]);
+
+    useEffect(() => {
+        if (editId) {
+            fetchTransactionToEdit();
+        }
+        fetchSuggestions();
+    }, [editId, fetchTransactionToEdit, fetchSuggestions]);
 
     const handleSave = async () => {
         if (!title || !amount || parseFloat(amount) <= 0) {
@@ -150,21 +150,14 @@ export default function AddTransactionScreen() {
                     }
                 }
             ]);
-        } catch (error: any) {
-            Alert.alert('Error', error.message || 'Something went wrong');
+        } catch (e: any) {
+            Alert.alert('Error', e.message || 'Something went wrong');
         } finally {
             setLoading(false);
         }
     };
 
-    const formatDate = (date: Date) => {
-        return date.toLocaleDateString('en-GB', {
-            weekday: 'short',
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric'
-        });
-    };
+
 
     const dateString = date.toISOString().split('T')[0];
     const categoriesToShow = type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;

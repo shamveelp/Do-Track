@@ -33,7 +33,7 @@ export default function InviteFriendsScreen() {
 
                 <Text style={styles.title}>Coming Soon</Text>
                 <Text style={styles.subtitle}>
-                    Our referral and reward program is currently in development. Soon you'll be able to invite friends and earn exclusive perks!
+                    Our referral and reward program is currently in development. Soon you&apos;ll be able to invite friends and earn exclusive perks!
                 </Text>
 
                 <View style={styles.badge}>

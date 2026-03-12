@@ -1,13 +1,14 @@
 {
   "expo": {
     "name": "Do-Track",
-    "slug": "Do-Track",
+    "slug": "do-track",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "dotrack",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "jsEngine": "hermes",
     "updates": {
       "enabled": false
     },
@@ -49,6 +50,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "ccd117ad-1638-4c87-8fc9-e6050680a8de"
+      }
+    },
+    "owner": "codingaashan"
   }
 }
